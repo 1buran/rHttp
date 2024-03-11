@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"net/textproto"
+	"net/url"
 	"slices"
 	"strings"
 
@@ -26,17 +27,27 @@ const (
 )
 
 const (
-	hotPink  = lipgloss.Color("69")
-	darkGray = lipgloss.Color("#767676")
-	cyan     = lipgloss.Color("#B6FFFF")
+	hotPink       = lipgloss.Color("69")
+	darkGray      = lipgloss.Color("#767676")
+	purple        = lipgloss.Color("141")
+	brightPurple  = lipgloss.Color("183")
+	brightPurple2 = lipgloss.Color("189")
+	lightBlue     = lipgloss.Color("12")
 )
 
 var (
-	promptStyle   = lipgloss.NewStyle().Foreground(hotPink).Bold(true)
-	textStyle     = lipgloss.NewStyle().Foreground(cyan)
-	continueStyle = lipgloss.NewStyle().Foreground(darkGray)
-	uriStyle      = lipgloss.NewStyle().Foreground(hotPink)
-	headerStyle   = lipgloss.NewStyle().Foreground(cyan)
+	promptStyle      = lipgloss.NewStyle().Foreground(hotPink).Bold(true)
+	textStyle        = lipgloss.NewStyle().Foreground(purple)
+	textValueStyle   = lipgloss.NewStyle().Foreground(brightPurple)
+	continueStyle    = lipgloss.NewStyle().Foreground(darkGray)
+	uriStyle         = lipgloss.NewStyle().Foreground(hotPink)
+	headerStyle      = textStyle
+	headerValueStyle = textValueStyle
+	urlStyle         = lipgloss.NewStyle().Foreground(brightPurple2).Bold(true)
+	titleStyle       = lipgloss.NewStyle().Foreground(lightBlue).
+				Bold(true).BorderStyle(lipgloss.NormalBorder()).
+				BorderForeground(lipgloss.Color("63")).
+				Padding(1).Width(60).AlignHorizontal(lipgloss.Center)
 )
 
 type KeyVal map[string]string
@@ -62,46 +73,11 @@ func (kv *orderedKeyVal) setValue(i1, i2 *textinput.Model) {
 	i2.Reset()
 }
 
-type request struct {
-	method  string
-	uri     string
-	headers orderedKeyVal
-	params  orderedKeyVal
-	cookies orderedKeyVal
+func NewReq() (r *http.Request) {
+	r, _ = http.NewRequest("GET", "http://example.com", nil)
+	return
 }
 
-func (r request) String() string {
-	var b strings.Builder
-
-	// TODO url encode with query string
-	b.WriteString(uriStyle.Render(r.method+" "+r.uri) + "\n")
-	slices.Sort(r.headers.order)
-	for _, k := range r.headers.order {
-		v := r.headers.KeyVal[k]
-		b.WriteString(headerStyle.Render(k+": "+v) + "\n")
-	}
-
-	// TODO add prams to URL query string: ...
-	b.WriteString("params:" + "\n")
-	for _, k := range r.params.order {
-		v := r.params.KeyVal[k]
-		b.WriteString(headerStyle.Render(k+": "+v) + "\n")
-	}
-
-	// TODO Set-Cookie: ...
-	b.WriteString("cookies:" + "\n")
-	for _, k := range r.cookies.order {
-		v := r.cookies.KeyVal[k]
-		b.WriteString(headerStyle.Render(k+": "+v) + "\n")
-	}
-
-	return b.String()
-}
-
-func NewReq() *request {
-	return &request{
-		"GET", "http://example.com", NewOrderedKeVal(), NewOrderedKeVal(), NewOrderedKeVal()}
-}
 func NewOrderedKeVal() orderedKeyVal {
 	return orderedKeyVal{order: []string{}, KeyVal: make(KeyVal)}
 }
@@ -118,7 +94,7 @@ func correctHeader(i *textinput.Model) {
 }
 
 type model struct {
-	req *request
+	req *http.Request
 	// TODO add inputs for values
 	inputs    []textinput.Model
 	cursorIdx int    // edit type
@@ -173,10 +149,17 @@ func NewKeyValInputs(n int) textinput.Model {
 	t.Prompt = prompts[n]
 	t.Placeholder = placeholders[n]
 	t.Width = 30
-	t.TextStyle = textStyle
 	t.PromptStyle = promptStyle
 	t.Validate = validators[n]
 	t.PlaceholderStyle = continueStyle
+
+	switch n {
+	case headerVal, paramVal, cookieVal:
+		t.TextStyle = textValueStyle
+	default:
+		t.TextStyle = textStyle
+	}
+
 	return t
 }
 
@@ -209,19 +192,42 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case tea.KeyEnter:
 			switch m.focused {
-			case header:
+			case header, headerVal:
 				correctHeader(&m.inputs[header])
-				m.req.headers.setKey(&m.inputs[header])
-			case param:
-				m.req.params.setKey(&m.inputs[param])
-			case cookie:
-				m.req.cookies.setKey(&m.inputs[cookie])
-			case headerVal:
-				m.req.headers.setValue(&m.inputs[header], &m.inputs[headerVal])
-			case paramVal:
-				m.req.params.setValue(&m.inputs[param], &m.inputs[paramVal])
-			case cookieVal:
-				m.req.cookies.setValue(&m.inputs[cookie], &m.inputs[cookieVal])
+				name := m.inputs[header].Value()
+				val := m.inputs[headerVal].Value()
+				if name != "" && val != "" {
+					m.req.Header.Set(name, val)
+					m.inputs[header].Reset()
+					m.inputs[headerVal].Reset()
+				}
+			case param, paramVal:
+				v, _ := url.ParseQuery(m.req.URL.RawQuery)
+				name := m.inputs[param].Value()
+				val := m.inputs[paramVal].Value()
+				if name != "" && val != "" {
+					v.Set(name, val)
+					m.req.URL.RawQuery = v.Encode()
+					m.inputs[param].Reset()
+					m.inputs[paramVal].Reset()
+				}
+			case cookie, cookieVal:
+				name := m.inputs[cookie].Value()
+				val := m.inputs[cookieVal].Value()
+				if name != "" && val != "" {
+					isNew := true
+					for _, i := range m.req.Cookies() {
+						if i.Name == name && i.Value == val {
+							isNew = false
+							break
+						}
+					}
+					if isNew {
+						m.req.AddCookie(&http.Cookie{Name: name, Value: val})
+					}
+					m.inputs[cookie].Reset()
+					m.inputs[cookieVal].Reset()
+				}
 			}
 
 			m.nextInput()
@@ -245,13 +251,32 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	var b strings.Builder
-	b.WriteString("Modify http request:\n")
 
+	b.WriteString(titleStyle.Render("rHTTP v0.0.1") + "\n")
+
+	// print prompts
 	for i := 0; i < len(m.inputs); i += 2 {
 		b.WriteString(m.inputs[i].View() + " " + m.inputs[i+1].View() + "\n")
 	}
 
-	b.WriteString("\n" + m.req.String())
+	// print result URL
+	b.WriteString("\n")
+	b.WriteString(
+		urlStyle.Render(
+			m.req.Proto+" "+m.req.Method+" "+m.req.URL.String()) + "\n")
+
+	var order []string
+	for k, _ := range m.req.Header {
+		order = append(order, k)
+	}
+
+	slices.Sort(order)
+
+	// print headers
+	for _, name := range order {
+		v := m.req.Header[name]
+		b.WriteString(headerStyle.Render(name+": ") + headerValueStyle.Render(strings.Join(v, ", ")) + "\n")
+	}
 	return b.String()
 }
 
