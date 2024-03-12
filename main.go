@@ -50,36 +50,9 @@ var (
 				Padding(1).Width(60).AlignHorizontal(lipgloss.Center)
 )
 
-type KeyVal map[string]string
-type orderedKeyVal struct {
-	order []string
-	KeyVal
-}
-
-func (kv *orderedKeyVal) setKey(i *textinput.Model) {
-	k := i.Value()
-	if k != "" {
-		_, ok := kv.KeyVal[k]
-		if !ok {
-			kv.order = append(kv.order, k)
-			kv.KeyVal[k] = ""
-		}
-	}
-}
-
-func (kv *orderedKeyVal) setValue(i1, i2 *textinput.Model) {
-	kv.KeyVal[i1.Value()] = i2.Value()
-	i1.Reset()
-	i2.Reset()
-}
-
 func NewReq() (r *http.Request) {
 	r, _ = http.NewRequest("GET", "http://example.com", nil)
 	return
-}
-
-func NewOrderedKeVal() orderedKeyVal {
-	return orderedKeyVal{order: []string{}, KeyVal: make(KeyVal)}
 }
 
 func correctHeader(i *textinput.Model) {
