@@ -239,7 +239,7 @@ func (m model) View() string {
 			m.req.Proto+" "+m.req.Method+" "+m.req.URL.String()) + "\n")
 
 	var order []string
-	for k, _ := range m.req.Header {
+	for k := range m.req.Header {
 		order = append(order, k)
 	}
 
