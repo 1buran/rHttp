@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/textproto"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -15,12 +16,22 @@ import (
 
 // Number of input or ENUM(input type, int)
 const (
-	header int = iota
+	host int = iota
+	proto
+	method
+	urlPath
+
+	header
 	headerVal
+
 	param
 	paramVal
+
 	cookie
 	cookieVal
+
+	form
+	formVal
 
 	// the last one is the max index of defined constants
 	fieldsCount
@@ -44,6 +55,7 @@ var (
 	headerStyle      = textStyle
 	headerValueStyle = textValueStyle
 	urlStyle         = lipgloss.NewStyle().Foreground(brightPurple2).Bold(true)
+	bodyStyle        = lipgloss.NewStyle().Foreground(brightPurple2)
 	titleStyle       = lipgloss.NewStyle().Foreground(lightBlue).
 				Bold(true).BorderStyle(lipgloss.NormalBorder()).
 				BorderForeground(lipgloss.Color("63")).
@@ -104,18 +116,18 @@ func headerValidator(s string) error {
 	return nil
 }
 
-func paramValidator(s string) error   { return nil }
-func cookieValidator(s string) error  { return nil }
-func defaultvalidator(s string) error { return nil }
-
-var validators = [fieldsCount]func(string) error{
-	// field name input and field value input validators
-	headerValidator, defaultvalidator,
-	paramValidator, defaultvalidator,
-	cookieValidator, defaultvalidator,
+var allowedMethods = []string{
+	"GET", "POST", "PUT", "PATCH", "HEAD", "DELETE", "OPTIONS", "PROPFIND", "SEARCH",
+	"TRACE", "PATCH", "PUT", "CONNECT",
 }
-var prompts = [fieldsCount]string{"Header ", "", "Param  ", "", "Cookie ", ""}
-var placeholders = [fieldsCount]string{"X-Auth-Token", "token value", "products_id", "10", "XDEBUG_SESSION", "debugger"}
+
+var prompts = [fieldsCount]string{
+	"Host   ", "HTTP/1.", "Method ", "Path  ",
+	"Header ", "", "Param  ", "", "Cookie ", "", "Form   ", ""}
+var placeholders = [fieldsCount]string{
+	"example.com", "1", "GET", "/",
+	"X-Auth-Token", "token value", "products_id", "10",
+	"XDEBUG_SESSION", "debugger", "login", "user"}
 
 func NewKeyValInputs(n int) textinput.Model {
 	t := textinput.New()
@@ -123,16 +135,24 @@ func NewKeyValInputs(n int) textinput.Model {
 	t.Placeholder = placeholders[n]
 	t.Width = 30
 	t.PromptStyle = promptStyle
-	t.Validate = validators[n]
 	t.PlaceholderStyle = continueStyle
+	t.TextStyle = textValueStyle
 
+	// set defaults input text
 	switch n {
-	case headerVal, paramVal, cookieVal:
-		t.TextStyle = textValueStyle
-	default:
-		t.TextStyle = textStyle
+	case proto:
+		t.SetValue("1")
+		t.SetSuggestions([]string{"0", "1"})
+		t.ShowSuggestions = true
+		t.Width = 1
+		t.CharLimit = 1
+	case host:
+		t.SetValue("example.com")
+	case method:
+		t.SetValue("GET")
+		t.SetSuggestions(allowedMethods)
+		t.ShowSuggestions = true
 	}
-
 	return t
 }
 
@@ -151,6 +171,21 @@ func (m model) Init() tea.Cmd {
 	return textinput.Blink
 }
 
+var formValues = make(url.Values)
+
+type readCloser struct {
+	strings.Reader
+}
+
+func (rc *readCloser) Close() error      { return nil }
+func newReadCloser(s string) *readCloser { return &readCloser{*strings.NewReader(s)} }
+
+func eraseIfError(t textinput.Model) {
+	if t.Err != nil {
+		t.Reset()
+	}
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd = make([]tea.Cmd, len(m.inputs))
 
@@ -160,6 +195,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyShiftTab:
 			m.prevInput()
 		case tea.KeyTab:
+			switch m.focused {
+			case proto:
+				val := m.inputs[proto].Value()
+				if val != "0" && val != "1" {
+					m.inputs[proto].SetValue("1")
+					m.inputs[proto].CursorEnd()
+				} else {
+					m.req.Proto = "HTTP/1." + val
+				}
+			case method:
+				r := regexp.MustCompile(`(?i)\b` + m.inputs[method].Value())
+				if r.MatchString(strings.Join(allowedMethods, " ")) {
+					m.inputs[method].SetValue(m.inputs[method].CurrentSuggestion())
+					m.req.Method = m.inputs[method].Value()
+					m.inputs[method].SetCursor(len(m.req.Method))
+				} else { // not allowed HTTP method, reset to last saved
+					m.inputs[method].SetValue(m.req.Method)
+					m.inputs[method].CursorEnd()
+				}
+			}
 			m.nextInput()
 		case tea.KeyCtrlC:
 			return m, tea.Quit
@@ -201,8 +256,36 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.inputs[cookie].Reset()
 					m.inputs[cookieVal].Reset()
 				}
+			case form, formVal:
+				name := m.inputs[form].Value()
+				val := m.inputs[formVal].Value()
+				if name != "" && val != "" {
+					formValues.Add(name, val)
+					m.req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+					m.req.Body = newReadCloser(formValues.Encode())
+					m.inputs[form].Reset()
+					m.inputs[formVal].Reset()
+				}
+			case method:
+				// disallow changing the value by enter
+				m.inputs[method].SetValue(m.req.Method)
+				m.inputs[method].CursorEnd()
+			case urlPath:
+				val := m.inputs[urlPath].Value()
+				m.req.URL.Path = val
+			case host:
+				val := m.inputs[host].Value()
+				m.req.URL.Host = val
+			case proto:
+				val := m.inputs[proto].Value()
+				if val != "0" && val != "1" {
+					m.inputs[proto].SetValue("1")
+					m.inputs[proto].CursorEnd()
+				}
+				m.req.Proto = "HTTP/1." + val
 			}
 
+			// after handling enter is done, go to next input..
 			m.nextInput()
 		}
 		for i := 0; i < len(m.inputs); i++ {
@@ -224,8 +307,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	var b strings.Builder
-
-	b.WriteString(titleStyle.Render("rHTTP v0.0.1") + "\n")
 
 	// print prompts
 	for i := 0; i < len(m.inputs); i += 2 {
@@ -250,6 +331,12 @@ func (m model) View() string {
 		v := m.req.Header[name]
 		b.WriteString(headerStyle.Render(name+": ") + headerValueStyle.Render(strings.Join(v, ", ")) + "\n")
 	}
+
+	// print body
+	if m.req.Body != nil {
+		b.WriteString("\n" + bodyStyle.Render(formValues.Encode()))
+	}
+
 	return b.String()
 }
 
