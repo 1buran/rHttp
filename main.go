@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"log"
 	"net/http"
 	"net/textproto"
@@ -8,6 +9,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -44,6 +46,7 @@ const (
 	brightPurple  = lipgloss.Color("183")
 	brightPurple2 = lipgloss.Color("189")
 	lightBlue     = lipgloss.Color("12")
+	lightPink     = lipgloss.Color("225")
 )
 
 var (
@@ -55,15 +58,16 @@ var (
 	headerStyle      = textStyle
 	headerValueStyle = textValueStyle
 	urlStyle         = lipgloss.NewStyle().Foreground(brightPurple2).Bold(true)
-	bodyStyle        = lipgloss.NewStyle().Foreground(brightPurple2)
-	titleStyle       = lipgloss.NewStyle().Foreground(lightBlue).
-				Bold(true).BorderStyle(lipgloss.NormalBorder()).
-				BorderForeground(lipgloss.Color("63")).
-				Padding(1).Width(60).AlignHorizontal(lipgloss.Center)
+	bodyStyle        = lipgloss.NewStyle().Foreground(lightPink)
+
+	titleStyle = lipgloss.NewStyle().Foreground(lightBlue).
+			Bold(true).BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(lipgloss.Color("63")).
+			Padding(1).Width(60).AlignHorizontal(lipgloss.Center)
 )
 
 func NewReq() (r *http.Request) {
-	r, _ = http.NewRequest("GET", "http://example.com", nil)
+	r, _ = http.NewRequest("GET", "http://localhost", nil)
 	return
 }
 
@@ -80,12 +84,14 @@ func correctHeader(i *textinput.Model) {
 
 type model struct {
 	req *http.Request
+	res *http.Response
 	// TODO add inputs for values
 	inputs    []textinput.Model
 	cursorIdx int    // edit type
 	cursorKey string // edit key of type orderedKeyVal store
 	focused   int
 	hideMenu  bool
+	resBody   []byte
 }
 
 // nextInput focuses the next input field
@@ -147,7 +153,7 @@ func NewKeyValInputs(n int) textinput.Model {
 		t.Width = 1
 		t.CharLimit = 1
 	case host:
-		t.SetValue("example.com")
+		t.SetValue("localhost")
 	case method:
 		t.SetValue("GET")
 		t.SetSuggestions(allowedMethods)
@@ -190,8 +196,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd = make([]tea.Cmd, len(m.inputs))
 
 	switch msg := msg.(type) {
+	case *http.Response:
+		defer msg.Body.Close()
+		m.resBody, _ = io.ReadAll(msg.Body)
+		m.res = msg
+
 	case tea.KeyMsg:
 		switch msg.Type {
+		case tea.KeyCtrlG:
+			cmd := func() tea.Msg {
+				r, err := sendRequest(m.req)
+				if err != nil {
+					return err
+				}
+				return r
+			}
+			return m, cmd
 		case tea.KeyShiftTab:
 			m.prevInput()
 		case tea.KeyTab:
@@ -294,7 +314,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.inputs[m.focused].Focus()
 
 	case error:
-		log.Println("error: ", msg)
+		// log.Println(msg)
 		return m, nil
 	}
 
@@ -303,6 +323,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	return m, tea.Batch(cmds...)
 
+}
+
+func headersPrintf(o io.StringWriter, h http.Header) {
+	var order []string
+	for k := range h {
+		order = append(order, k)
+	}
+
+	slices.Sort(order)
+
+	// print headers
+	for _, name := range order {
+		v := h[name]
+		o.WriteString(headerStyle.Render(name+": ") + headerValueStyle.Render(strings.Join(v, ", ")) + "\n")
+	}
 }
 
 func (m model) View() string {
@@ -314,30 +349,39 @@ func (m model) View() string {
 	}
 
 	// print result URL
-	b.WriteString("\n")
 	b.WriteString(
-		urlStyle.Render(
+		"\n" + urlStyle.Render(
 			m.req.Proto+" "+m.req.Method+" "+m.req.URL.String()) + "\n")
 
-	var order []string
-	for k := range m.req.Header {
-		order = append(order, k)
-	}
-
-	slices.Sort(order)
-
-	// print headers
-	for _, name := range order {
-		v := m.req.Header[name]
-		b.WriteString(headerStyle.Render(name+": ") + headerValueStyle.Render(strings.Join(v, ", ")) + "\n")
-	}
+	headersPrintf(&b, m.req.Header)
 
 	// print body
 	if m.req.Body != nil {
 		b.WriteString("\n" + bodyStyle.Render(formValues.Encode()))
 	}
 
+	// print response
+	if m.res != nil && m.res.StatusCode > 0 {
+		b.WriteString(
+			"\n" + urlStyle.Render(m.res.Proto+" "+m.res.Status) + "\n")
+
+		headersPrintf(&b, m.res.Header)
+
+		// TODO..
+		// if m.res.Header["Content-Type"] == "application/json" {
+		// } else {
+		// 	b.WriteString("\n" + string(m.resBody))
+		// }
+
+		b.WriteString("\n" + bodyStyle.Render(string(m.resBody)))
+
+	}
 	return b.String()
+}
+
+func sendRequest(r *http.Request) (*http.Response, error) {
+	http_cli := http.Client{Timeout: 2 * time.Second}
+	return http_cli.Do(r)
 }
 
 func main() {
