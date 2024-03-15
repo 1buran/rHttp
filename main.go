@@ -42,17 +42,12 @@ const (
 
 const (
 	hotPink       = lipgloss.Color("69")
+	lightPink     = lipgloss.Color("225")
 	darkGray      = lipgloss.Color("#767676")
 	purple        = lipgloss.Color("141")
 	brightPurple  = lipgloss.Color("183")
 	brightPurple2 = lipgloss.Color("189")
 	lightBlue     = lipgloss.Color("12")
-	lightPink     = lipgloss.Color("225")
-	yellow        = lipgloss.Color("220")
-
-	// screen terminal dimensions
-	width       = 96
-	columnWidth = 30
 )
 
 var (
@@ -88,41 +83,6 @@ func correctHeader(i *textinput.Model) {
 	i.SetValue(h)
 }
 
-const (
-	statusInfoEmoji    = "🟢"
-	statusWarningEmoji = "🟡"
-	statusErrorEmoji   = "🔴"
-)
-
-const (
-	statusInfo int = iota
-	statusWarning
-	statusError
-)
-
-// A status bar state.
-type StatusBar struct {
-	status   int
-	text     string
-	reqCount int
-}
-
-// Get status message.
-func (s *StatusBar) getStatusText() (t string) {
-	var style lipgloss.Style
-
-	switch s.status {
-	case statusInfo:
-		style = statusTextInfo
-	case statusWarning:
-		style = statusTextWarning
-	case statusError:
-		style = statusTextError
-	}
-
-	return style.Render(s.text)
-}
-
 // The model is a state of app
 type model struct {
 	req       *http.Request
@@ -153,90 +113,7 @@ func (m *model) prevInput() {
 
 // Request is executed.
 func (m *model) reqIsExecuted() bool {
-	return m.res != nil && m.res.StatusCode > 0
-}
-
-// Set status.
-func (m *model) setStatus(s int, t string) {
-	m.StatusBar.status = s
-	m.StatusBar.text = time.Now().Format("[15:04:05] ") + t
-}
-
-// Increment count of request.
-func (m *model) incReqCount() {
-	m.StatusBar.reqCount++
-}
-
-// Get count of executed requests.
-func (m *model) getReqCount() int {
-	return m.StatusBar.reqCount
-}
-
-// Get status logo indicator
-func (m *model) getStatusIndicator() (ind string) {
-	ind = `💜 rHttp`
-	if m.reqIsExecuted() {
-		switch {
-		case m.res.StatusCode >= 400:
-			ind = statusErrorEmoji
-		case m.res.StatusCode >= 300:
-			ind = statusWarningEmoji
-		case m.res.StatusCode >= 100:
-			ind = statusInfoEmoji
-		default:
-			ind = `🤔`
-		}
-		ind += " " + m.req.Proto
-	}
-	return
-}
-
-var (
-	statusNugget = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFDF5")).
-			Padding(0, 1)
-
-	statusBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#343433", Dark: "#C1C6B2"}).
-			Background(lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#353533"})
-
-	statusStyle = lipgloss.NewStyle().
-			Inherit(statusBarStyle).
-			Foreground(lipgloss.Color("#FFFDF5")).
-			Background(lipgloss.Color("#FF5F87")).
-			Padding(0, 1).
-			MarginRight(1)
-
-	encodingStyle = statusNugget.Copy().
-			Background(lipgloss.Color("#A550DF")).
-			Align(lipgloss.Right)
-
-	statusText        = lipgloss.NewStyle().Inherit(statusBarStyle)
-	statusTextInfo    = lipgloss.NewStyle().Inherit(statusText)
-	statusTextError   = lipgloss.NewStyle().Inherit(statusText).Foreground(lightPink)
-	statusTextWarning = lipgloss.NewStyle().Inherit(statusText).Foreground(yellow)
-	indicatorStyle    = statusNugget.Copy().Background(lipgloss.Color("#6124DF"))
-)
-
-// Format status bar.
-func (m *model) formatStatusBar() string {
-	w := lipgloss.Width
-
-	status := statusStyle.Render("STATUS")
-	reqCount := encodingStyle.Render(strconv.Itoa(m.getReqCount()))
-	indicator := indicatorStyle.Render(m.getStatusIndicator())
-	statusVal := statusText.Copy().
-		Width(width - w(status) - w(reqCount) - w(indicator)).
-		Render(m.getStatusText())
-
-	bar := lipgloss.JoinHorizontal(lipgloss.Top,
-		status,
-		statusVal,
-		reqCount,
-		indicator,
-	)
-
-	return statusBarStyle.Width(width).Render(bar)
+	return m.res != nil
 }
 
 func headerValidator(s string) error {
@@ -472,6 +349,35 @@ func headersPrintf(o io.StringWriter, h http.Header) {
 		v := h[name]
 		o.WriteString(headerStyle.Render(name+": ") + headerValueStyle.Render(strings.Join(v, ", ")) + "\n")
 	}
+}
+
+// Format status bar.
+func (m *model) formatStatusBar() string {
+	width := 100
+	w := lipgloss.Width
+
+	status := statusStyle.Render("STATUS")
+	reqCounter := encodingStyle.Render(strconv.Itoa(m.getReqCount()))
+
+	var resStatusCode int
+	if m.reqIsExecuted() {
+		resStatusCode = m.res.StatusCode
+	}
+	indicator := indicatorStyle.Render(
+		getStatusIndicator(resStatusCode, m.req.Proto))
+
+	statusVal := statusText.Copy().
+		Width(width - w(status) - w(reqCounter) - w(indicator)).
+		Render(m.getStatusText())
+
+	bar := lipgloss.JoinHorizontal(lipgloss.Top,
+		status,
+		statusVal,
+		reqCounter,
+		indicator,
+	)
+
+	return statusBarStyle.Width(width).Render(bar)
 }
 
 func (m model) View() string {
