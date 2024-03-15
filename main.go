@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -47,6 +48,11 @@ const (
 	brightPurple2 = lipgloss.Color("189")
 	lightBlue     = lipgloss.Color("12")
 	lightPink     = lipgloss.Color("225")
+	yellow        = lipgloss.Color("220")
+
+	// screen terminal dimensions
+	width       = 96
+	columnWidth = 30
 )
 
 var (
@@ -56,7 +62,7 @@ var (
 	continueStyle    = lipgloss.NewStyle().Foreground(darkGray)
 	uriStyle         = lipgloss.NewStyle().Foreground(hotPink)
 	headerStyle      = textStyle
-	headerValueStyle = textValueStyle
+	headerValueStyle = lipgloss.NewStyle().Foreground(brightPurple)
 	urlStyle         = lipgloss.NewStyle().Foreground(brightPurple2).Bold(true)
 	bodyStyle        = lipgloss.NewStyle().Foreground(lightPink)
 
@@ -82,16 +88,53 @@ func correctHeader(i *textinput.Model) {
 	i.SetValue(h)
 }
 
+const (
+	statusInfoEmoji    = "🟢"
+	statusWarningEmoji = "🟡"
+	statusErrorEmoji   = "🔴"
+)
+
+const (
+	statusInfo int = iota
+	statusWarning
+	statusError
+)
+
+// A status bar state.
+type StatusBar struct {
+	status   int
+	text     string
+	reqCount int
+}
+
+// Get status message.
+func (s *StatusBar) getStatusText() (t string) {
+	var style lipgloss.Style
+
+	switch s.status {
+	case statusInfo:
+		style = statusTextInfo
+	case statusWarning:
+		style = statusTextWarning
+	case statusError:
+		style = statusTextError
+	}
+
+	return style.Render(s.text)
+}
+
+// The model is a state of app
 type model struct {
-	req *http.Request
-	res *http.Response
-	// TODO add inputs for values
+	req       *http.Request
+	res       *http.Response
 	inputs    []textinput.Model
 	cursorIdx int    // edit type
 	cursorKey string // edit key of type orderedKeyVal store
 	focused   int
 	hideMenu  bool
 	resBody   []byte
+
+	StatusBar
 }
 
 // nextInput focuses the next input field
@@ -106,6 +149,94 @@ func (m *model) prevInput() {
 	if m.focused < 0 {
 		m.focused = len(m.inputs) - 1
 	}
+}
+
+// Request is executed.
+func (m *model) reqIsExecuted() bool {
+	return m.res != nil && m.res.StatusCode > 0
+}
+
+// Set status.
+func (m *model) setStatus(s int, t string) {
+	m.StatusBar.status = s
+	m.StatusBar.text = time.Now().Format("[15:04:05] ") + t
+}
+
+// Increment count of request.
+func (m *model) incReqCount() {
+	m.StatusBar.reqCount++
+}
+
+// Get count of executed requests.
+func (m *model) getReqCount() int {
+	return m.StatusBar.reqCount
+}
+
+// Get status logo indicator
+func (m *model) getStatusIndicator() (ind string) {
+	ind = `💜 rHttp`
+	if m.reqIsExecuted() {
+		switch {
+		case m.res.StatusCode >= 400:
+			ind = statusErrorEmoji
+		case m.res.StatusCode >= 300:
+			ind = statusWarningEmoji
+		case m.res.StatusCode >= 100:
+			ind = statusInfoEmoji
+		default:
+			ind = `🤔`
+		}
+		ind += " " + m.req.Proto
+	}
+	return
+}
+
+var (
+	statusNugget = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFFDF5")).
+			Padding(0, 1)
+
+	statusBarStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.AdaptiveColor{Light: "#343433", Dark: "#C1C6B2"}).
+			Background(lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#353533"})
+
+	statusStyle = lipgloss.NewStyle().
+			Inherit(statusBarStyle).
+			Foreground(lipgloss.Color("#FFFDF5")).
+			Background(lipgloss.Color("#FF5F87")).
+			Padding(0, 1).
+			MarginRight(1)
+
+	encodingStyle = statusNugget.Copy().
+			Background(lipgloss.Color("#A550DF")).
+			Align(lipgloss.Right)
+
+	statusText        = lipgloss.NewStyle().Inherit(statusBarStyle)
+	statusTextInfo    = lipgloss.NewStyle().Inherit(statusText)
+	statusTextError   = lipgloss.NewStyle().Inherit(statusText).Foreground(lightPink)
+	statusTextWarning = lipgloss.NewStyle().Inherit(statusText).Foreground(yellow)
+	indicatorStyle    = statusNugget.Copy().Background(lipgloss.Color("#6124DF"))
+)
+
+// Format status bar.
+func (m *model) formatStatusBar() string {
+	w := lipgloss.Width
+
+	status := statusStyle.Render("STATUS")
+	reqCount := encodingStyle.Render(strconv.Itoa(m.getReqCount()))
+	indicator := indicatorStyle.Render(m.getStatusIndicator())
+	statusVal := statusText.Copy().
+		Width(width - w(status) - w(reqCount) - w(indicator)).
+		Render(m.getStatusText())
+
+	bar := lipgloss.JoinHorizontal(lipgloss.Top,
+		status,
+		statusVal,
+		reqCount,
+		indicator,
+	)
+
+	return statusBarStyle.Width(width).Render(bar)
 }
 
 func headerValidator(s string) error {
@@ -200,10 +331,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		defer msg.Body.Close()
 		m.resBody, _ = io.ReadAll(msg.Body)
 		m.res = msg
+		m.setStatus(statusInfo, "request is executed, response taken")
 
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlG:
+			m.setStatus(statusInfo, "sending request...")
+			m.incReqCount()
 			cmd := func() tea.Msg {
 				r, err := sendRequest(m.req)
 				if err != nil {
@@ -314,7 +448,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.inputs[m.focused].Focus()
 
 	case error:
-		// log.Println(msg)
+		m.setStatus(statusError, msg.Error())
 		return m, nil
 	}
 
@@ -361,7 +495,7 @@ func (m model) View() string {
 	}
 
 	// print response
-	if m.res != nil && m.res.StatusCode > 0 {
+	if m.reqIsExecuted() {
 		b.WriteString(
 			"\n" + urlStyle.Render(m.res.Proto+" "+m.res.Status) + "\n")
 
@@ -376,6 +510,10 @@ func (m model) View() string {
 		b.WriteString("\n" + bodyStyle.Render(string(m.resBody)))
 
 	}
+
+	// add status bar
+	b.WriteString("\n" + m.formatStatusBar())
+
 	return b.String()
 }
 
