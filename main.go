@@ -394,13 +394,14 @@ func (m *model) formatStatusBar() string {
 	width := 100
 	w := lipgloss.Width
 
-	status := statusStyle.Render("STATUS")
-	reqCounter := encodingStyle.Render(strconv.Itoa(m.getReqCount()))
-
 	var resStatusCode int
 	if m.reqIsExecuted() {
 		resStatusCode = m.res.StatusCode
 	}
+
+	status := m.getStatusBadge("STATUS")
+	reqCounter := encodingStyle.Render(strconv.Itoa(m.getReqCount()))
+
 	indicator := indicatorStyle.Render(
 		getStatusIndicator(resStatusCode, m.req.Proto))
 
@@ -455,7 +456,7 @@ func (m model) View() string {
 	}
 
 	// add status bar
-	b.WriteString("\n" + m.formatStatusBar())
+	b.WriteString("\n\n" + m.formatStatusBar())
 
 	return b.String()
 }

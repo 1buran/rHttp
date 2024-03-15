@@ -27,12 +27,18 @@ var (
 			Foreground(lipgloss.AdaptiveColor{Light: "#343433", Dark: "#C1C6B2"}).
 			Background(lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#353533"})
 
-	statusStyle = lipgloss.NewStyle().
-			Inherit(statusBarStyle).
+	statusBadge = lipgloss.NewStyle().Inherit(statusBarStyle).
+			Background(lipgloss.Color("#59A8C9")).
 			Foreground(lipgloss.Color("#FFFDF5")).
-			Background(lipgloss.Color("#FF5F87")).
 			Padding(0, 1).
 			MarginRight(1)
+	statusBadgeError = lipgloss.NewStyle().Inherit(statusBadge).
+				Background(lipgloss.Color("#FF5F87")).Padding(0, 1)
+
+	statusBadgeOk = lipgloss.NewStyle().Inherit(statusBadge).
+			Background(lipgloss.Color("#2e8048")).Padding(0, 1)
+	statusBadgeWarning = lipgloss.NewStyle().Inherit(statusBadge).
+				Background(lipgloss.Color("#E3BC68")).Padding(0, 1)
 
 	encodingStyle = statusNugget.Copy().
 			Background(lipgloss.Color("#A550DF")).
@@ -88,16 +94,33 @@ func (s *StatusBar) getReqCount() int {
 func getStatusIndicator(resStatusCode int, proto string) (ind string) {
 	switch {
 	case resStatusCode >= 400:
-		ind = statusErrorEmoji
+		ind = statusErrorEmoji + " " + proto
 	case resStatusCode >= 300:
-		ind = statusWarningEmoji
+		ind = statusWarningEmoji + " " + proto
 	case resStatusCode >= 100:
-		ind = statusInfoEmoji
+		ind = statusInfoEmoji + " " + proto
 	case resStatusCode > 0, resStatusCode < 0:
-		ind = `🤔`
+		ind = `🤔` + " " + proto
 	default:
 		ind = `💜 rHttp`
 	}
-	ind += " " + proto
 	return
+}
+
+// Get status badge.
+func (s *StatusBar) getStatusBadge(text string) (badge string) {
+	var style lipgloss.Style
+
+	switch s.status {
+	case statusInfo:
+		style = statusBadgeOk
+	case statusWarning:
+		style = statusBadgeWarning
+	case statusError:
+		style = statusBadgeError
+	default:
+		style = statusBadge
+	}
+
+	return style.Render(text)
 }
