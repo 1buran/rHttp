@@ -67,9 +67,14 @@ var (
 			Padding(1).Width(60).AlignHorizontal(lipgloss.Center)
 )
 
-func NewReq() (r *http.Request) {
+func newReqest() (r *http.Request) {
 	r, _ = http.NewRequest("GET", "http://localhost", nil)
 	return
+}
+
+func sendRequest(r *http.Request) (*http.Response, error) {
+	http_cli := http.Client{Timeout: 2 * time.Second}
+	return http_cli.Do(r)
 }
 
 func correctHeader(i *textinput.Model) {
@@ -81,6 +86,23 @@ func correctHeader(i *textinput.Model) {
 
 	// auto correct header name
 	i.SetValue(h)
+}
+
+func headersPrintf(o io.StringWriter, h http.Header) {
+	var order []string
+	for k := range h {
+		order = append(order, k)
+	}
+
+	slices.Sort(order)
+
+	// print headers
+	for _, name := range order {
+		v := h[name]
+		o.WriteString(
+			headerStyle.Render(name+": ") +
+				headerValueStyle.Render(strings.Join(v, ", ")) + "\n")
+	}
 }
 
 // The model is a state of app
@@ -114,6 +136,98 @@ func (m *model) prevInput() {
 // Request is executed.
 func (m *model) reqIsExecuted() bool {
 	return m.res != nil
+}
+
+func (m *model) setReqHeader() {
+	correctHeader(&m.inputs[header])
+	name := m.inputs[header].Value()
+	val := m.inputs[headerVal].Value()
+	if name != "" && val != "" {
+		m.req.Header.Set(name, val)
+		m.inputs[header].Reset()
+		m.inputs[headerVal].Reset()
+	}
+}
+
+func (m *model) setReqParam() {
+	v, _ := url.ParseQuery(m.req.URL.RawQuery)
+	name := m.inputs[param].Value()
+	val := m.inputs[paramVal].Value()
+	if name != "" && val != "" {
+		v.Set(name, val)
+		m.req.URL.RawQuery = v.Encode()
+		m.inputs[param].Reset()
+		m.inputs[paramVal].Reset()
+	}
+}
+
+func (m *model) setReqCookie() {
+	name := m.inputs[cookie].Value()
+	val := m.inputs[cookieVal].Value()
+	if name != "" && val != "" {
+		isNew := true
+		for _, i := range m.req.Cookies() {
+			if i.Name == name && i.Value == val {
+				isNew = false
+				break
+			}
+		}
+		if isNew {
+			m.req.AddCookie(&http.Cookie{Name: name, Value: val})
+		}
+		m.inputs[cookie].Reset()
+		m.inputs[cookieVal].Reset()
+	}
+}
+
+func (m *model) setReqForm() {
+	name := m.inputs[form].Value()
+	val := m.inputs[formVal].Value()
+	if name != "" && val != "" {
+		formValues.Add(name, val)
+		m.req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		m.req.Body = newReadCloser(formValues.Encode())
+		m.inputs[form].Reset()
+		m.inputs[formVal].Reset()
+	}
+}
+
+func (m *model) setReqMethod() {
+	r := regexp.MustCompile(`(?i)\b` + m.inputs[method].Value())
+	if r.MatchString(strings.Join(allowedMethods, " ")) {
+		m.inputs[method].SetValue(m.inputs[method].CurrentSuggestion())
+		m.req.Method = m.inputs[method].Value()
+		m.inputs[method].SetCursor(len(m.req.Method))
+	} else { // not allowed HTTP method, reset to last saved
+		m.inputs[method].SetValue(m.req.Method)
+		m.inputs[method].CursorEnd()
+	}
+}
+
+func (m *model) setReqProto() {
+	val := m.inputs[proto].Value()
+	if val != "0" && val != "1" {
+		m.inputs[proto].SetValue("1")
+		m.inputs[proto].CursorEnd()
+	} else {
+		m.req.Proto = "HTTP/1." + val
+	}
+}
+
+func (m *model) setReqUrlPath() {
+	val := m.inputs[urlPath].Value()
+	m.req.URL.Path = val
+}
+
+func (m *model) setReqHost() {
+	val := m.inputs[host].Value()
+	m.req.URL.Host = val
+
+}
+
+func (m *model) restoreReqMethod() {
+	m.inputs[method].SetValue(m.req.Method)
+	m.inputs[method].CursorEnd()
 }
 
 func headerValidator(s string) error {
@@ -176,7 +290,7 @@ func initialModel() model {
 		inputs = append(inputs, NewKeyValInputs(i))
 	}
 	return model{
-		req:    NewReq(),
+		req:    newReqest(),
 		inputs: inputs,
 	}
 }
@@ -228,23 +342,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyTab:
 			switch m.focused {
 			case proto:
-				val := m.inputs[proto].Value()
-				if val != "0" && val != "1" {
-					m.inputs[proto].SetValue("1")
-					m.inputs[proto].CursorEnd()
-				} else {
-					m.req.Proto = "HTTP/1." + val
-				}
+				m.setReqProto()
 			case method:
-				r := regexp.MustCompile(`(?i)\b` + m.inputs[method].Value())
-				if r.MatchString(strings.Join(allowedMethods, " ")) {
-					m.inputs[method].SetValue(m.inputs[method].CurrentSuggestion())
-					m.req.Method = m.inputs[method].Value()
-					m.inputs[method].SetCursor(len(m.req.Method))
-				} else { // not allowed HTTP method, reset to last saved
-					m.inputs[method].SetValue(m.req.Method)
-					m.inputs[method].CursorEnd()
-				}
+				m.setReqMethod()
 			}
 			m.nextInput()
 		case tea.KeyCtrlC:
@@ -252,68 +352,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyEnter:
 			switch m.focused {
 			case header, headerVal:
-				correctHeader(&m.inputs[header])
-				name := m.inputs[header].Value()
-				val := m.inputs[headerVal].Value()
-				if name != "" && val != "" {
-					m.req.Header.Set(name, val)
-					m.inputs[header].Reset()
-					m.inputs[headerVal].Reset()
-				}
+				m.setReqHeader()
 			case param, paramVal:
-				v, _ := url.ParseQuery(m.req.URL.RawQuery)
-				name := m.inputs[param].Value()
-				val := m.inputs[paramVal].Value()
-				if name != "" && val != "" {
-					v.Set(name, val)
-					m.req.URL.RawQuery = v.Encode()
-					m.inputs[param].Reset()
-					m.inputs[paramVal].Reset()
-				}
+				m.setReqParam()
 			case cookie, cookieVal:
-				name := m.inputs[cookie].Value()
-				val := m.inputs[cookieVal].Value()
-				if name != "" && val != "" {
-					isNew := true
-					for _, i := range m.req.Cookies() {
-						if i.Name == name && i.Value == val {
-							isNew = false
-							break
-						}
-					}
-					if isNew {
-						m.req.AddCookie(&http.Cookie{Name: name, Value: val})
-					}
-					m.inputs[cookie].Reset()
-					m.inputs[cookieVal].Reset()
-				}
+				m.setReqCookie()
 			case form, formVal:
-				name := m.inputs[form].Value()
-				val := m.inputs[formVal].Value()
-				if name != "" && val != "" {
-					formValues.Add(name, val)
-					m.req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-					m.req.Body = newReadCloser(formValues.Encode())
-					m.inputs[form].Reset()
-					m.inputs[formVal].Reset()
-				}
+				m.setReqForm()
 			case method:
-				// disallow changing the value by enter
-				m.inputs[method].SetValue(m.req.Method)
-				m.inputs[method].CursorEnd()
+				m.restoreReqMethod() // disallow changing the value by enter
 			case urlPath:
-				val := m.inputs[urlPath].Value()
-				m.req.URL.Path = val
+				m.setReqUrlPath()
 			case host:
-				val := m.inputs[host].Value()
-				m.req.URL.Host = val
+				m.setReqHost()
 			case proto:
-				val := m.inputs[proto].Value()
-				if val != "0" && val != "1" {
-					m.inputs[proto].SetValue("1")
-					m.inputs[proto].CursorEnd()
-				}
-				m.req.Proto = "HTTP/1." + val
+				m.setReqProto()
 			}
 
 			// after handling enter is done, go to next input..
@@ -334,21 +387,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	return m, tea.Batch(cmds...)
 
-}
-
-func headersPrintf(o io.StringWriter, h http.Header) {
-	var order []string
-	for k := range h {
-		order = append(order, k)
-	}
-
-	slices.Sort(order)
-
-	// print headers
-	for _, name := range order {
-		v := h[name]
-		o.WriteString(headerStyle.Render(name+": ") + headerValueStyle.Render(strings.Join(v, ", ")) + "\n")
-	}
 }
 
 // Format status bar.
@@ -414,18 +452,12 @@ func (m model) View() string {
 		// }
 
 		b.WriteString("\n" + bodyStyle.Render(string(m.resBody)))
-
 	}
 
 	// add status bar
 	b.WriteString("\n" + m.formatStatusBar())
 
 	return b.String()
-}
-
-func sendRequest(r *http.Request) (*http.Response, error) {
-	http_cli := http.Client{Timeout: 2 * time.Second}
-	return http_cli.Do(r)
 }
 
 func main() {
