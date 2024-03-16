@@ -51,6 +51,11 @@ const (
 )
 
 var (
+	screenWidth  = 100
+	screenHeight = 50
+
+	baseStyle = lipgloss.NewStyle().Width(screenWidth)
+
 	promptStyle      = lipgloss.NewStyle().Foreground(hotPink).Bold(true)
 	textStyle        = lipgloss.NewStyle().Foreground(purple)
 	textValueStyle   = lipgloss.NewStyle().Foreground(brightPurple)
@@ -58,9 +63,11 @@ var (
 	uriStyle         = lipgloss.NewStyle().Foreground(hotPink)
 	headerStyle      = textStyle
 	headerValueStyle = lipgloss.NewStyle().Foreground(brightPurple)
-	urlStyle         = lipgloss.NewStyle().Foreground(brightPurple2).Bold(true)
-	bodyStyle        = lipgloss.NewStyle().Foreground(lightPink)
+	urlStyle         = lipgloss.NewStyle().Inherit(baseStyle).
+				Foreground(brightPurple2).
+				Bold(true).Padding(0, 1)
 
+	bodyStyle  = lipgloss.NewStyle().Inherit(baseStyle).Foreground(lightPink)
 	titleStyle = lipgloss.NewStyle().Foreground(lightBlue).
 			Bold(true).BorderStyle(lipgloss.NormalBorder()).
 			BorderForeground(lipgloss.Color("63")).
@@ -88,8 +95,8 @@ func correctHeader(i *textinput.Model) {
 	i.SetValue(h)
 }
 
-func headersPrintf(o io.StringWriter, h http.Header) {
-	var order []string
+func headersPrintf(h http.Header) []string {
+	var order, lines []string
 	for k := range h {
 		order = append(order, k)
 	}
@@ -98,23 +105,32 @@ func headersPrintf(o io.StringWriter, h http.Header) {
 
 	// print headers
 	for _, name := range order {
-		v := h[name]
-		o.WriteString(
-			headerStyle.Render(name+": ") +
-				headerValueStyle.Render(strings.Join(v, ", ")) + "\n")
+		val := strings.Join(h[name], ", ")
+		nameRendered := headerStyle.Padding(0, 1).Render(name + ":")
+		lines = append(
+			lines, lipgloss.JoinHorizontal(
+				lipgloss.Top,
+				nameRendered,
+				headerValueStyle.Padding(0, 1).
+					Width(screenWidth-lipgloss.Width(nameRendered)).
+					Render(val),
+			),
+		)
 	}
+	return lines
 }
 
 // The model is a state of app
 type model struct {
-	req       *http.Request
-	res       *http.Response
-	inputs    []textinput.Model
-	cursorIdx int    // edit type
-	cursorKey string // edit key of type orderedKeyVal store
-	focused   int
-	hideMenu  bool
-	resBody   []byte
+	req        *http.Request
+	res        *http.Response
+	inputs     []textinput.Model
+	cursorIdx  int    // edit type
+	cursorKey  string // edit key of type orderedKeyVal store
+	focused    int
+	hideMenu   bool
+	resBody    []byte
+	fullScreen bool
 
 	StatusBar
 }
@@ -324,8 +340,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.res = msg
 		m.setStatus(statusInfo, "request is executed, response taken")
 
+	case tea.WindowSizeMsg:
+		m.setStatus(
+			statusInfo,
+			"detected screen size: "+strconv.Itoa(msg.Width)+" x "+strconv.Itoa(msg.Height))
+		screenWidth = msg.Width
+		screenHeight = msg.Height
 	case tea.KeyMsg:
 		switch msg.Type {
+		case tea.KeyCtrlF:
+			if m.fullScreen {
+				m.fullScreen = false
+				return m, tea.ExitAltScreen
+			}
+			m.fullScreen = true
+			return m, tea.EnterAltScreen
 		case tea.KeyCtrlG:
 			m.setStatus(statusInfo, "sending request...")
 			m.incReqCount()
@@ -347,7 +376,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.setReqMethod()
 			}
 			m.nextInput()
-		case tea.KeyCtrlC:
+		case tea.KeyCtrlC, tea.KeyCtrlQ:
 			return m, tea.Quit
 		case tea.KeyEnter:
 			switch m.focused {
@@ -379,7 +408,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case error:
 		m.setStatus(statusError, msg.Error())
-		return m, nil
+		m.res = nil
+		return m, tea.ClearScreen
 	}
 
 	for i := 0; i < len(m.inputs); i++ {
@@ -391,7 +421,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // Format status bar.
 func (m *model) formatStatusBar() string {
-	width := 100
 	w := lipgloss.Width
 
 	var resStatusCode int
@@ -406,7 +435,7 @@ func (m *model) formatStatusBar() string {
 		getStatusIndicator(resStatusCode, m.req.Proto))
 
 	statusVal := statusText.Copy().
-		Width(width - w(status) - w(reqCounter) - w(indicator)).
+		Width(screenWidth - w(status) - w(reqCounter) - w(indicator)).
 		Render(m.getStatusText())
 
 	bar := lipgloss.JoinHorizontal(lipgloss.Top,
@@ -416,35 +445,45 @@ func (m *model) formatStatusBar() string {
 		indicator,
 	)
 
-	return statusBarStyle.Width(width).Render(bar)
+	return statusBarStyle.Width(screenWidth).Render(bar)
 }
 
 func (m model) View() string {
-	var b strings.Builder
+	var lines []string
 
 	// print prompts
+	var prompts []string
 	for i := 0; i < len(m.inputs); i += 2 {
-		b.WriteString(m.inputs[i].View() + " " + m.inputs[i+1].View() + "\n")
+		prompts = append(
+			prompts,
+			lipgloss.JoinHorizontal(lipgloss.Top, " ", m.inputs[i].View(), m.inputs[i+1].View()))
 	}
+	lines = append(lines, prompts...)
+	lines = append(lines, "") // one more empty line between this and next render
 
 	// print result URL
-	b.WriteString(
-		"\n" + urlStyle.Render(
-			m.req.Proto+" "+m.req.Method+" "+m.req.URL.String()) + "\n")
+	reqUrl := urlStyle.Render(m.req.Proto + " " + m.req.Method + " " + m.req.URL.String())
+	lines = append(lines, reqUrl)
 
-	headersPrintf(&b, m.req.Header)
+	// print headers
+	lines = append(lines, headersPrintf(m.req.Header)...)
+	lines = append(lines, "") // one more empty line between this and next render
 
 	// print body
 	if m.req.Body != nil {
-		b.WriteString("\n" + bodyStyle.Render(formValues.Encode()))
+		lines = append(lines, bodyStyle.Render(formValues.Encode()))
+		lines = append(lines, "") // one more empty line between this and next render
 	}
 
 	// print response
 	if m.reqIsExecuted() {
-		b.WriteString(
-			"\n" + urlStyle.Render(m.res.Proto+" "+m.res.Status) + "\n")
+		resUrl := urlStyle.Render(m.res.Proto + " " + m.res.Status)
+		lines = append(lines, resUrl)
+		lines = append(lines, "") // one more empty line between this and next render
 
-		headersPrintf(&b, m.res.Header)
+		// print headers
+		lines = append(lines, headersPrintf(m.res.Header)...)
+		lines = append(lines, "") // one more empty line between this and next render
 
 		// TODO..
 		// if m.res.Header["Content-Type"] == "application/json" {
@@ -452,13 +491,16 @@ func (m model) View() string {
 		// 	b.WriteString("\n" + string(m.resBody))
 		// }
 
-		b.WriteString("\n" + bodyStyle.Render(string(m.resBody)))
+		// print body
+		lines = append(lines, bodyStyle.Height(screenHeight-len(lines)-2).Render(string(m.resBody)))
+		lines = append(lines, "") // one more empty line between this and next render
 	}
 
 	// add status bar
-	b.WriteString("\n\n" + m.formatStatusBar())
+	lines = append(lines, m.formatStatusBar())
 
-	return b.String()
+	// write all lines to output
+	return lipgloss.JoinVertical(lipgloss.Top, lines...)
 }
 
 func main() {
