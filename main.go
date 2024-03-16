@@ -122,16 +122,16 @@ func headersPrintf(h http.Header) []string {
 
 // The model is a state of app
 type model struct {
-	req        *http.Request
-	res        *http.Response
-	inputs     []textinput.Model
-	cursorIdx  int    // edit type
-	cursorKey  string // edit key of type orderedKeyVal store
-	focused    int
-	hideMenu   bool
-	resBody    []byte
-	fullScreen bool
-
+	req          *http.Request
+	res          *http.Response
+	inputs       []textinput.Model
+	cursorIdx    int    // edit type
+	cursorKey    string // edit key of type orderedKeyVal store
+	focused      int
+	hideMenu     bool
+	resBodyLines []string
+	fullScreen   bool
+	lineNum      int
 	StatusBar
 }
 
@@ -336,7 +336,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case *http.Response:
 		defer msg.Body.Close()
-		m.resBody, _ = io.ReadAll(msg.Body)
+		b, _ := io.ReadAll(msg.Body)
+		m.resBodyLines = strings.Split(string(b), "\n")
 		m.res = msg
 		m.setStatus(statusInfo, "request is executed, response taken")
 
@@ -348,6 +349,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		screenHeight = msg.Height
 	case tea.KeyMsg:
 		switch msg.Type {
+		case tea.KeyPgDown:
+			m.lineNum += 5
+			if m.lineNum > len(m.resBodyLines) {
+				m.lineNum = len(m.resBodyLines) - 1
+			}
+		case tea.KeyPgUp:
+			m.lineNum -= 5
+			if m.lineNum < 0 {
+				m.lineNum = 0
+			}
 		case tea.KeyCtrlF:
 			if m.fullScreen {
 				m.fullScreen = false
@@ -492,7 +503,11 @@ func (m model) View() string {
 		// }
 
 		// print body
-		lines = append(lines, bodyStyle.Height(screenHeight-len(lines)-2).Render(string(m.resBody)))
+		end := m.lineNum + screenHeight - len(lines) - 1
+		if end > len(m.resBodyLines) {
+			end = len(m.resBodyLines) - 1
+		}
+		lines = append(lines, m.resBodyLines[m.lineNum:end]...)
 		lines = append(lines, "") // one more empty line between this and next render
 	}
 
