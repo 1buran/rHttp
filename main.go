@@ -154,6 +154,13 @@ func (m *model) reqIsExecuted() bool {
 	return m.res != nil
 }
 
+// Clear response artefacts.
+func (m *model) clearRespArtefacts() {
+	m.res = nil
+	m.resBodyLines = nil
+	m.lineNum = 0
+}
+
 func (m *model) setReqHeader() {
 	correctHeader(&m.inputs[header])
 	name := m.inputs[header].Value()
@@ -368,6 +375,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.EnterAltScreen
 		case tea.KeyCtrlG:
 			m.setStatus(statusInfo, "sending request...")
+			m.clearRespArtefacts()
 			m.incReqCount()
 			cmd := func() tea.Msg {
 				r, err := sendRequest(m.req)
@@ -419,7 +427,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case error:
 		m.setStatus(statusError, msg.Error())
-		m.res = nil
+		m.clearRespArtefacts()
 		return m, tea.ClearScreen
 	}
 
