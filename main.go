@@ -12,6 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alecthomas/chroma/v2"
+	"github.com/alecthomas/chroma/v2/formatters"
+	"github.com/alecthomas/chroma/v2/lexers"
+	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -337,15 +341,65 @@ func eraseIfError(t textinput.Model) {
 	}
 }
 
+// Match lexer against given content type of http response.
+func matchContentTypeTolexer(ct string) chroma.Lexer {
+	for _, l := range lexers.GlobalLexerRegistry.Lexers {
+		for _, mt := range l.Config().MimeTypes {
+			if strings.Contains(ct, mt) {
+				return l
+			}
+		}
+	}
+
+	return nil
+}
+
+func formatRespBody(ct, s string) []string {
+	var content strings.Builder
+
+	// huge one line splitter
+	lp := lipgloss.NewStyle().Width(screenWidth).Padding(0, 1)
+	s = lp.Render(s)
+
+	lexer := matchContentTypeTolexer(ct)
+	if lexer == nil {
+		// detect lang
+		lexer = lexers.Analyse(s)
+	}
+	lexer = chroma.Coalesce(lexer)
+
+	// pick a style
+	style := styles.Get("catppuccin-mocha")
+	if style == nil {
+		style = styles.Fallback
+	}
+
+	// pick a formatter
+	formatter := formatters.Get("terminal16m")
+	iterator, err := lexer.Tokenise(nil, s)
+	if err != nil {
+		// tea.Println(err)
+		panic(err)
+	}
+
+	err = formatter.Format(&content, style, iterator)
+	if err != nil {
+		// tea.Println(err)
+		panic(err)
+	}
+
+	return strings.Split(content.String(), "\n")
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd = make([]tea.Cmd, len(m.inputs))
 
 	switch msg := msg.(type) {
 	case *http.Response:
 		defer msg.Body.Close()
-		b, _ := io.ReadAll(msg.Body)
-		m.resBodyLines = strings.Split(string(b), "\n")
+		buf, _ := io.ReadAll(msg.Body)
 		m.res = msg
+		m.resBodyLines = formatRespBody(m.res.Header.Get("content-type"), string(buf))
 		m.setStatus(statusInfo, "request is executed, response taken")
 
 	case tea.WindowSizeMsg:
@@ -511,9 +565,9 @@ func (m model) View() string {
 		// }
 
 		// print body
-		end := m.lineNum + screenHeight - len(lines) - 1
+		end := m.lineNum + screenHeight - len(lines) - 2
 		if end > len(m.resBodyLines) {
-			end = len(m.resBodyLines) - 1
+			end = len(m.resBodyLines) - 2
 		}
 		lines = append(lines, m.resBodyLines[m.lineNum:end]...)
 		lines = append(lines, "") // one more empty line between this and next render
