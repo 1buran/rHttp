@@ -451,12 +451,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// decrease offset to take one last page in full size of screen lines
 				m.offset += len(m.resBodyLines) - availableScreenLines - m.offset
 			}
-			m.setStatus(statusInfo, strconv.Itoa(m.offset)+" "+strconv.Itoa(usedScreenLines)+" "+strconv.Itoa(len(m.resBodyLines)))
 		case tea.KeyPgUp:
 			if m.offset-offsetShift >= 0 {
 				m.offset -= offsetShift
 			}
-			m.setStatus(statusInfo, strconv.Itoa(m.offset)+" "+strconv.Itoa(usedScreenLines))
 		case tea.KeyCtrlF:
 			if m.fullScreen {
 				m.fullScreen = false
