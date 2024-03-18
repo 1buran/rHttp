@@ -57,8 +57,8 @@ const (
 var (
 	screenWidth  = 100
 	screenHeight = 50
-
-	baseStyle = lipgloss.NewStyle().Width(screenWidth)
+	offsetShift  = 5
+	baseStyle    = lipgloss.NewStyle().Width(screenWidth)
 
 	promptStyle      = lipgloss.NewStyle().Foreground(hotPink).Bold(true)
 	textStyle        = lipgloss.NewStyle().Foreground(purple)
@@ -135,7 +135,7 @@ type model struct {
 	hideMenu     bool
 	resBodyLines []string
 	fullScreen   bool
-	lineNum      int
+	offset       int
 	StatusBar
 }
 
@@ -162,7 +162,17 @@ func (m *model) reqIsExecuted() bool {
 func (m *model) clearRespArtefacts() {
 	m.res = nil
 	m.resBodyLines = nil
-	m.lineNum = 0
+	m.offset = 0
+}
+
+// Get page of response.
+func (m *model) getRespPageLines() []string {
+	limit := screenHeight - usedScreenLines - 2 // available screen lines for display of res body
+	end := m.offset + limit
+	if end > len(m.resBodyLines)-1 {
+		return m.resBodyLines[m.offset:]
+	}
+	return m.resBodyLines[m.offset:end]
 }
 
 func (m *model) setReqHeader() {
@@ -391,10 +401,33 @@ func formatRespBody(ct, s string) []string {
 	return strings.Split(content.String(), "\n")
 }
 
+// Timer is a data container for some payload + time started.
+type Timer struct {
+	start   time.Time
+	payload tea.Msg
+}
+
+// New message with timer.
+func NewMessageWithTimer(payload any) Timer {
+	return Timer{time.Now(), payload}
+}
+
+// Elapsed time from start of timer.
+func (t *Timer) elapsedTime() time.Duration {
+	return time.Since(t.start)
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd = make([]tea.Cmd, len(m.inputs))
 
 	switch msg := msg.(type) {
+	case Timer:
+		m.reqTime = msg.elapsedTime()
+		cmd := func() tea.Msg {
+			return msg.payload
+		}
+		return m, cmd
+
 	case *http.Response:
 		defer msg.Body.Close()
 		buf, _ := io.ReadAll(msg.Body)
@@ -411,15 +444,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyPgDown:
-			m.lineNum += 5
-			if m.lineNum > len(m.resBodyLines) {
-				m.lineNum = len(m.resBodyLines) - 1
+			availableScreenLines := screenHeight - usedScreenLines - 2
+			if m.offset+offsetShift+availableScreenLines <= len(m.resBodyLines) {
+				m.offset += offsetShift
+			} else {
+				// decrease offset to take one last page in full size of screen lines
+				m.offset += len(m.resBodyLines) - availableScreenLines - m.offset
 			}
+			m.setStatus(statusInfo, strconv.Itoa(m.offset)+" "+strconv.Itoa(usedScreenLines)+" "+strconv.Itoa(len(m.resBodyLines)))
 		case tea.KeyPgUp:
-			m.lineNum -= 5
-			if m.lineNum < 0 {
-				m.lineNum = 0
+			if m.offset-offsetShift >= 0 {
+				m.offset -= offsetShift
 			}
+			m.setStatus(statusInfo, strconv.Itoa(m.offset)+" "+strconv.Itoa(usedScreenLines))
 		case tea.KeyCtrlF:
 			if m.fullScreen {
 				m.fullScreen = false
@@ -434,9 +471,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmd := func() tea.Msg {
 				r, err := sendRequest(m.req)
 				if err != nil {
-					return err
+					return NewMessageWithTimer(err)
 				}
-				return r
+				return NewMessageWithTimer(r)
 			}
 			return m, cmd
 		case tea.KeyShiftTab:
@@ -502,24 +539,28 @@ func (m *model) formatStatusBar() string {
 	}
 
 	status := m.getStatusBadge("STATUS")
-	reqCounter := encodingStyle.Render(strconv.Itoa(m.getReqCount()))
+	reqCounter := reqCountStyle.Render(strconv.Itoa(m.getReqCount()))
+	reqTime := reqTimeStyle.Render(m.getReqTime())
 
 	indicator := indicatorStyle.Render(
 		getStatusIndicator(resStatusCode, m.req.Proto))
 
 	statusVal := statusText.Copy().
-		Width(screenWidth - w(status) - w(reqCounter) - w(indicator)).
+		Width(screenWidth - w(status) - w(reqCounter) - w(reqTime) - w(indicator)).
 		Render(m.getStatusText())
 
 	bar := lipgloss.JoinHorizontal(lipgloss.Top,
 		status,
 		statusVal,
 		reqCounter,
+		reqTime,
 		indicator,
 	)
 
 	return statusBarStyle.Width(screenWidth).Render(bar)
 }
+
+var usedScreenLines int
 
 func (m model) View() string {
 	var lines []string
@@ -565,11 +606,8 @@ func (m model) View() string {
 		// }
 
 		// print body
-		end := m.lineNum + screenHeight - len(lines) - 2
-		if end > len(m.resBodyLines) {
-			end = len(m.resBodyLines) - 2
-		}
-		lines = append(lines, m.resBodyLines[m.lineNum:end]...)
+		usedScreenLines = len(lines)
+		lines = append(lines, m.getRespPageLines()...)
 		lines = append(lines, "") // one more empty line between this and next render
 	}
 

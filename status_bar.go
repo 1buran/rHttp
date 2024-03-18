@@ -40,8 +40,12 @@ var (
 	statusBadgeWarning = lipgloss.NewStyle().Inherit(statusBadge).
 				Background(lipgloss.Color("#E3BC68")).Padding(0, 1)
 
-	encodingStyle = statusNugget.Copy().
+	reqCountStyle = statusNugget.Copy().
 			Background(lipgloss.Color("#A550DF")).
+			Align(lipgloss.Right)
+
+	reqTimeStyle = statusNugget.Copy().
+			Background(lipgloss.Color("#C550DF")).
 			Align(lipgloss.Right)
 
 	statusText        = lipgloss.NewStyle().Inherit(statusBarStyle)
@@ -56,6 +60,12 @@ type StatusBar struct {
 	status   int
 	text     string
 	reqCount int
+	reqTime  time.Duration
+}
+
+// Get request time.
+func (s *StatusBar) getReqTime() string {
+	return s.reqTime.String()
 }
 
 // Get status message.
