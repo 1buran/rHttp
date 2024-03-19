@@ -450,10 +450,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				// decrease offset to take one last page in full size of screen lines
 				m.offset += len(m.resBodyLines) - availableScreenLines - m.offset
+				if m.offset < 0 {
+					m.offset = 0
+				}
 			}
 		case tea.KeyPgUp:
 			if m.offset-offsetShift >= 0 {
 				m.offset -= offsetShift
+			} else {
+				m.offset = 0
 			}
 		case tea.KeyCtrlF:
 			if m.fullScreen {
@@ -565,7 +570,7 @@ func (m model) View() string {
 
 	// print prompts
 	var prompts []string
-	for i := 0; i < len(m.inputs); i += 2 {
+	for i := 0; i < len(m.inputs)-1; i += 2 {
 		prompts = append(
 			prompts,
 			lipgloss.JoinHorizontal(lipgloss.Top, " ", m.inputs[i].View(), m.inputs[i+1].View()))
