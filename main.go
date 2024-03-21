@@ -76,6 +76,12 @@ var (
 			Bold(true).BorderStyle(lipgloss.NormalBorder()).
 			BorderForeground(lipgloss.Color("63")).
 			Padding(1).Width(60).AlignHorizontal(lipgloss.Center)
+
+	buttonStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFF7DB")).
+			Background(lipgloss.Color("#5F5FFF")).
+			Padding(0, 3).
+			MarginLeft(2)
 )
 
 func newReqest() (r *http.Request) {
@@ -298,7 +304,7 @@ func NewKeyValInputs(n int) textinput.Model {
 	t := textinput.New()
 	t.Prompt = prompts[n]
 	t.Placeholder = placeholders[n]
-	t.Width = 30
+	t.Width = 25
 	t.PromptStyle = promptStyle
 	t.PlaceholderStyle = continueStyle
 	t.TextStyle = textValueStyle
@@ -416,6 +422,8 @@ func NewMessageWithTimer(payload any) Timer {
 func (t *Timer) elapsedTime() time.Duration {
 	return time.Since(t.start)
 }
+
+var usedScreenLines int
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd = make([]tea.Cmd, len(m.inputs))
@@ -563,62 +571,91 @@ func (m *model) formatStatusBar() string {
 	return statusBarStyle.Width(screenWidth).Render(bar)
 }
 
-var usedScreenLines int
-
 func (m model) View() string {
-	var lines []string
+	// Layout parts
+	var (
+		usedLines                                     int
+		prompts, reqHeaders, resHeaders, resBodyLines []string
+		reqUrl, resUrl, formValuesEncoded             string
+	)
 
-	// print prompts
-	var prompts []string
-	for i := 0; i < len(m.inputs)-1; i += 2 {
+	saveSession := buttonStyle.Render("Save")
+	loadSession := buttonStyle.Render("Load")
+	// border := rightPanelStyle.Render("")
+
+	// Text inputs
+	for i := 0; i < fieldsCount; i += 2 {
 		prompts = append(
 			prompts,
 			lipgloss.JoinHorizontal(lipgloss.Top, " ", m.inputs[i].View(), m.inputs[i+1].View()))
 	}
-	lines = append(lines, prompts...)
-	lines = append(lines, "") // one more empty line between this and next render
 
-	// print result URL
-	reqUrl := urlStyle.Render(m.req.Proto + " " + m.req.Method + " " + m.req.URL.String())
-	lines = append(lines, reqUrl)
+	// Request URL
+	reqUrl = urlStyle.Render(
+		lipgloss.JoinHorizontal(lipgloss.Top, m.req.Proto, " ", m.req.Method, " ", m.req.URL.String()))
 
-	// print headers
-	lines = append(lines, headersPrintf(m.req.Header)...)
-	lines = append(lines, "") // one more empty line between this and next render
+	// Request headers
+	reqHeaders = headersPrintf(m.req.Header)
 
-	// print body
+	// Request encoded form values
 	if m.req.Body != nil {
-		lines = append(lines, bodyStyle.Render(formValues.Encode()))
-		lines = append(lines, "") // one more empty line between this and next render
+		formValuesEncoded = " " + bodyStyle.Render(formValues.Encode())
 	}
 
 	// print response
 	if m.reqIsExecuted() {
-		resUrl := urlStyle.Render(m.res.Proto + " " + m.res.Status)
-		lines = append(lines, resUrl)
-		lines = append(lines, "") // one more empty line between this and next render
 
-		// print headers
-		lines = append(lines, headersPrintf(m.res.Header)...)
-		lines = append(lines, "") // one more empty line between this and next render
+		// Response URL
+		resUrl = urlStyle.Render(
+			lipgloss.JoinHorizontal(lipgloss.Top, m.res.Proto, " ", m.res.Status))
+
+		// Response headers
+		resHeaders = headersPrintf(m.res.Header)
 
 		// TODO..
 		// if m.res.Header["Content-Type"] == "application/json" {
 		// } else {
 		// 	b.WriteString("\n" + string(m.resBody))
 		// }
-
-		// print body
-		usedScreenLines = len(lines)
-		lines = append(lines, m.getRespPageLines()...)
-		lines = append(lines, "") // one more empty line between this and next render
 	}
 
 	// add status bar
-	lines = append(lines, m.formatStatusBar())
+	statusBar := m.formatStatusBar()
+
+	menu := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		lipgloss.JoinVertical(lipgloss.Left, prompts...),
+		lipgloss.JoinVertical(lipgloss.Center,
+			lipgloss.NewStyle().Foreground(lipgloss.Color("#00FFFF")).Render("Session"),
+			lipgloss.JoinHorizontal(lipgloss.Top,
+				saveSession, loadSession,
+			),
+		),
+	)
+	usedLines += len(prompts)
+
+	reqInfo := []string{"", reqUrl}
+	reqInfo = append(reqInfo, reqHeaders...)
+	if formValuesEncoded != "" {
+		reqInfo = append(reqInfo, "", formValuesEncoded)
+	}
+	reqInfoRendered := lipgloss.JoinVertical(lipgloss.Top, reqInfo...)
+	usedLines += len(reqInfo)
+
+	resInfo := []string{"", resUrl}
+	resInfo = append(resInfo, resHeaders...)
+	resInfo = append(resInfo, "")
+	usedLines += len(resInfo)
+
+	usedScreenLines = usedLines
+	resBodyLines = m.getRespPageLines()
+	resInfo = append(resInfo, resBodyLines...)
+	resInfoRendered := lipgloss.JoinVertical(lipgloss.Top, resInfo...)
 
 	// write all lines to output
-	return lipgloss.JoinVertical(lipgloss.Top, lines...)
+	return lipgloss.JoinVertical(
+		lipgloss.Top, menu, reqInfoRendered, resInfoRendered, statusBar,
+	)
 }
 
 func main() {
