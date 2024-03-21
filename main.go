@@ -227,7 +227,11 @@ func (m *model) setReqForm() {
 	name := m.inputs[form].Value()
 	val := m.inputs[formVal].Value()
 	if name != "" && val != "" {
-		formValues.Add(name, val)
+		if formValues.Get(name) != "" {
+			formValues.Set(name, val)
+		} else {
+			formValues.Add(name, val)
+		}
 		m.req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		m.req.Body = newReadCloser(formValues.Encode())
 		m.inputs[form].Reset()
