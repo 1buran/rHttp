@@ -26,11 +26,13 @@ import (
 
 // Number of input or ENUM(input type, int)
 const (
-	host int = iota
-	proto
-	method
+	// Bubbletea inputs: instances of [textinput.Model],
+	// in code m.inputs slice contains references to them.
+	method int = iota
+	host
 	urlPath
 
+	// Key value pairs.
 	header
 	headerVal
 
@@ -43,8 +45,19 @@ const (
 	form
 	formVal
 
-	// the last one is the max index of defined constants
+	// The last one is the max index of defined text input,
+	// this is abroad between text inputs and checkboxes.
 	fieldsCount
+
+	// Custom inputs: instances of [Checkbox].
+	// in code m.checkboxes slice contains references to them.
+	// Index of checkbox can be calculated in this way:
+	//   m.checkboxes[i - fieldsCount - 1]
+	https
+	proto
+
+	// last index
+	end
 )
 
 const (
@@ -64,6 +77,10 @@ var (
 	offsetShift  = 5
 	baseStyle    = lipgloss.NewStyle().Width(screenWidth)
 
+	checkboxOnStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true).PaddingRight(21)
+	checkboxOffStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("8")).PaddingRight(21)
+	checkboxProtoStyle = lipgloss.NewStyle().Foreground(brightPurple).Bold(true)
+
 	promptStyle       = lipgloss.NewStyle().Foreground(hotPink).Bold(true)
 	promptActiveStyle = lipgloss.NewStyle().Foreground(rose).Bold(true)
 	textStyle         = lipgloss.NewStyle().Foreground(purple)
@@ -82,6 +99,14 @@ var (
 			BorderForeground(lipgloss.Color("63")).
 			Padding(1).Width(60).AlignHorizontal(lipgloss.Center)
 )
+
+func checkboxIndex(i int) (idx int) {
+	idx = i - fieldsCount - 1
+	if idx < 0 {
+		idx = 0 // first checkbox element
+	}
+	return
+}
 
 func newReqest() (r *http.Request) {
 	r, _ = http.NewRequest("GET", "http://localhost", nil)
@@ -134,6 +159,7 @@ type model struct {
 	req          *http.Request
 	res          *http.Response
 	inputs       []textinput.Model
+	checkboxes   []Checkbox
 	cursorIdx    int    // edit type
 	cursorKey    string // edit key of type orderedKeyVal store
 	focused      int
@@ -152,8 +178,13 @@ func (m *model) blurPrompt(i int) {
 	case headerVal, paramVal, cookieVal, formVal:
 		p = i - 1
 	}
-	m.inputs[p].PromptStyle = promptStyle
-	m.inputs[i].Blur()
+	if i < fieldsCount {
+		m.inputs[p].PromptStyle = promptStyle
+		m.inputs[i].Blur()
+	} else {
+		idx := checkboxIndex(i)
+		m.checkboxes[idx].style[2] = promptStyle
+	}
 }
 
 // Focus prompt.
@@ -163,22 +194,29 @@ func (m *model) focusPrompt(i int) {
 	case headerVal, paramVal, cookieVal, formVal:
 		n = i - 1
 	}
-	m.inputs[n].PromptStyle = promptActiveStyle
-	m.inputs[i].Focus()
+	if i < fieldsCount {
+		m.inputs[n].PromptStyle = promptActiveStyle
+		m.inputs[i].Focus()
+	} else {
+		idx := checkboxIndex(i)
+		m.checkboxes[idx].style[2] = promptActiveStyle
+	}
 
 }
 
 // nextInput focuses the next input field
 func (m *model) nextInput() {
 	switch m.focused {
-	case proto:
-		m.setReqProto()
 	case method:
 		m.setReqMethod()
 	}
 
 	m.blurPrompt(m.focused)
-	m.focused = (m.focused + 1) % len(m.inputs)
+	if m.focused+1 == fieldsCount {
+		m.focused = fieldsCount + 1 // crossed abroad, go to checkboxes
+	} else {
+		m.focused = (m.focused + 1) % end
+	}
 	m.focusPrompt(m.focused)
 }
 
@@ -186,10 +224,16 @@ func (m *model) nextInput() {
 func (m *model) prevInput() {
 
 	m.blurPrompt(m.focused)
-	m.focused--
+
+	if m.focused-1 == fieldsCount {
+		m.focused -= 2 // crossed abroad, go to checkboxes
+	} else {
+		m.focused--
+	}
+
 	// Wrap around
 	if m.focused < 0 {
-		m.focused = len(m.inputs) - 1
+		m.focused = end - 1
 	}
 	m.focusPrompt(m.focused)
 }
@@ -275,6 +319,9 @@ func (m *model) setReqForm() {
 }
 
 func (m *model) setReqMethod() {
+	defer func() {
+		recover() // BUG: textinput.(*Model).CurrentSuggestion(...) cause panic first time
+	}()
 	r := regexp.MustCompile(`(?i)\b` + m.inputs[method].Value())
 	if r.MatchString(strings.Join(allowedMethods, " ")) {
 		m.inputs[method].SetValue(m.inputs[method].CurrentSuggestion())
@@ -286,13 +333,11 @@ func (m *model) setReqMethod() {
 	}
 }
 
-func (m *model) setReqProto() {
-	val := m.inputs[proto].Value()
-	if val != "0" && val != "1" {
-		m.inputs[proto].SetValue("1")
-		m.inputs[proto].CursorEnd()
+func (m *model) setReqProto(b bool) {
+	if b {
+		m.req.Proto = "HTTP/1.1"
 	} else {
-		m.req.Proto = "HTTP/1." + val
+		m.req.Proto = "HTTP/1.0"
 	}
 }
 
@@ -310,6 +355,14 @@ func (m *model) setReqHost() {
 func (m *model) restoreReqMethod() {
 	m.inputs[method].SetValue(m.req.Method)
 	m.inputs[method].CursorEnd()
+}
+
+func (m *model) setHttps(b bool) {
+	if b {
+		m.req.URL.Scheme = "https"
+	} else {
+		m.req.URL.Scheme = "http"
+	}
 }
 
 func headerValidator(s string) error {
@@ -332,10 +385,10 @@ var allowedMethods = []string{
 }
 
 var prompts = [fieldsCount]string{
-	"Host   ", "HTTP/1.", "Method ", "Path  ",
+	"Method ", "Host ", "Path   ",
 	"Header ", "", "Param  ", "", "Cookie ", "", "Form   ", ""}
 var placeholders = [fieldsCount]string{
-	"example.com", "1", "GET", "/",
+	"GET", "example.com", "/",
 	"X-Auth-Token", "token value", "products_id", "10",
 	"XDEBUG_SESSION", "debugger", "login", "user"}
 
@@ -350,26 +403,23 @@ func NewKeyValInputs(n int) textinput.Model {
 
 	// set defaults input text
 	switch n {
-	case proto:
-		t.SetValue("1")
-		t.SetSuggestions([]string{"0", "1"})
-		t.ShowSuggestions = true
-		t.Width = 1
-		t.CharLimit = 1
 	case host:
 		t.SetValue("localhost")
-		t.Focus() // start program with first prompt activated
-		t.PromptStyle = promptActiveStyle
 	case method:
 		t.SetValue("GET")
+		t.PromptStyle = promptActiveStyle
 		t.SetSuggestions(allowedMethods)
 		t.ShowSuggestions = true
+		t.Focus() // start program with first prompt activated
+	case urlPath:
+		t.Width = 52
 	}
 	return t
 }
 
 func initialModel() model {
 	var inputs []textinput.Model
+	var checkboxes []Checkbox
 
 	w, h, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
@@ -381,11 +431,20 @@ func initialModel() model {
 	for i := 0; i < fieldsCount; i++ {
 		inputs = append(inputs, NewKeyValInputs(i))
 	}
-	return model{
-		req:       newReqest(),
-		inputs:    inputs,
-		KeyStroke: NewKeyStroke(),
+
+	c1 := NewCheckbox(https, "https  ", "⟨on⟩", "⟨off⟩", promptStyle, checkboxOnStyle, checkboxOffStyle)
+	c2 := NewCheckbox(proto, "HTTP/1.", "⟨1⟩", "⟨0⟩", promptStyle, checkboxProtoStyle, checkboxProtoStyle)
+	c2.SetOn()
+	checkboxes = append(checkboxes, c1, c2)
+
+	m := model{
+		req:        newReqest(),
+		inputs:     inputs,
+		checkboxes: checkboxes,
+		KeyStroke:  NewKeyStroke(),
 	}
+	// m.nextInput()
+	return m
 }
 
 func (m model) Init() tea.Cmd {
@@ -473,12 +532,27 @@ func (t *Timer) elapsedTime() time.Duration {
 	return time.Since(t.start)
 }
 
+// Forward message to [Checkbox] handler.
+func (m *model) checkboxHandler(msg tea.Msg, i int) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	idx := checkboxIndex(i)
+	m.checkboxes[idx], cmd = m.checkboxes[idx].Update(msg)
+	return m, cmd
+}
+
 var usedScreenLines int
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd = make([]tea.Cmd, len(m.inputs))
 
 	switch msg := msg.(type) {
+	case CheckboxUpdated: // todo: move this to checkboxHandler (Checkbox.Update loop)
+		switch msg.Id {
+		case https:
+			m.setHttps(msg.On)
+		case proto:
+			m.setReqProto(msg.On)
+		}
 	case Timer:
 		m.reqTime = msg.elapsedTime()
 		cmd := func() tea.Msg {
@@ -563,7 +637,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case host:
 				m.setReqHost()
 			case proto:
-				m.setReqProto()
+				return m.checkboxHandler(msg, proto)
+			case https:
+				return m.checkboxHandler(msg, https)
 			}
 
 			// after handling enter is done, go to next input..
@@ -579,6 +655,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	for i := 0; i < len(m.inputs); i++ {
 		m.inputs[i], cmds[i] = m.inputs[i].Update(msg)
 	}
+	// for i := 0; i < len(m.checkboxes); i++ {
+	// 	m.checkboxes[i], cmds[i] = m.checkboxes[i].Update(msg)
+	// }
 	return m, tea.Batch(cmds...)
 }
 
@@ -621,12 +700,26 @@ func (m model) View() string {
 		reqUrl, resUrl, formValuesEncoded             string
 	)
 
-	// Text inputs
-	for i := 0; i < fieldsCount; i += 2 {
+	prompts = append(
+		prompts,
+		lipgloss.JoinHorizontal(lipgloss.Top, " ", m.inputs[method].View(), m.inputs[host].View()),
+		" "+m.inputs[urlPath].View())
+
+	// Text inputs (key value pairs)
+	for i := header; i < fieldsCount; i += 2 {
 		prompts = append(
 			prompts,
 			lipgloss.JoinHorizontal(lipgloss.Top, " ", m.inputs[i].View(), m.inputs[i+1].View()))
 	}
+
+	// Checkboxes
+	prompts = append(
+		prompts,
+		lipgloss.JoinHorizontal(
+			lipgloss.Top, " ",
+			m.checkboxes[checkboxIndex(https)].View(),
+			m.checkboxes[checkboxIndex(proto)].View()),
+	)
 
 	// Request URL
 	reqUrl = urlStyle.Render(

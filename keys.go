@@ -56,7 +56,7 @@ var keys = KeyMap{
 	),
 	Enter: key.NewBinding(
 		key.WithKeys("enter"),
-		key.WithHelp("enter", "set value"),
+		key.WithHelp("enter", "set value / toggle checkbox"),
 	),
 }
 
