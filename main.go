@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/textproto"
 	"net/url"
+	"os"
 	"regexp"
 	"slices"
 	"strconv"
@@ -16,9 +17,11 @@ import (
 	"github.com/alecthomas/chroma/v2/formatters"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"golang.org/x/term"
 )
 
 // Number of input or ENUM(input type, int)
@@ -52,6 +55,7 @@ const (
 	brightPurple  = lipgloss.Color("183")
 	brightPurple2 = lipgloss.Color("189")
 	lightBlue     = lipgloss.Color("12")
+	rose          = lipgloss.Color("177")
 )
 
 var (
@@ -60,14 +64,15 @@ var (
 	offsetShift  = 5
 	baseStyle    = lipgloss.NewStyle().Width(screenWidth)
 
-	promptStyle      = lipgloss.NewStyle().Foreground(hotPink).Bold(true)
-	textStyle        = lipgloss.NewStyle().Foreground(purple)
-	textValueStyle   = lipgloss.NewStyle().Foreground(brightPurple)
-	continueStyle    = lipgloss.NewStyle().Foreground(darkGray)
-	uriStyle         = lipgloss.NewStyle().Foreground(hotPink)
-	headerStyle      = textStyle
-	headerValueStyle = lipgloss.NewStyle().Foreground(brightPurple)
-	urlStyle         = lipgloss.NewStyle().Inherit(baseStyle).
+	promptStyle       = lipgloss.NewStyle().Foreground(hotPink).Bold(true)
+	promptActiveStyle = lipgloss.NewStyle().Foreground(rose).Bold(true)
+	textStyle         = lipgloss.NewStyle().Foreground(purple)
+	textValueStyle    = lipgloss.NewStyle().Foreground(brightPurple)
+	continueStyle     = lipgloss.NewStyle().Foreground(darkGray)
+	uriStyle          = lipgloss.NewStyle().Foreground(hotPink)
+	headerStyle       = textStyle
+	headerValueStyle  = lipgloss.NewStyle().Foreground(brightPurple)
+	urlStyle          = lipgloss.NewStyle().Inherit(baseStyle).
 				Foreground(brightPurple2).
 				Bold(true).Padding(0, 1)
 
@@ -76,12 +81,6 @@ var (
 			Bold(true).BorderStyle(lipgloss.NormalBorder()).
 			BorderForeground(lipgloss.Color("63")).
 			Padding(1).Width(60).AlignHorizontal(lipgloss.Center)
-
-	buttonStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFF7DB")).
-			Background(lipgloss.Color("#5F5FFF")).
-			Padding(0, 3).
-			MarginLeft(2)
 )
 
 func newReqest() (r *http.Request) {
@@ -143,20 +142,56 @@ type model struct {
 	fullScreen   bool
 	offset       int
 	StatusBar
+	KeyStroke
+}
+
+// Blur prompt.
+func (m *model) blurPrompt(i int) {
+	p := i
+	switch i {
+	case headerVal, paramVal, cookieVal, formVal:
+		p = i - 1
+	}
+	m.inputs[p].PromptStyle = promptStyle
+	m.inputs[i].Blur()
+}
+
+// Focus prompt.
+func (m *model) focusPrompt(i int) {
+	n := i
+	switch i {
+	case headerVal, paramVal, cookieVal, formVal:
+		n = i - 1
+	}
+	m.inputs[n].PromptStyle = promptActiveStyle
+	m.inputs[i].Focus()
+
 }
 
 // nextInput focuses the next input field
 func (m *model) nextInput() {
+	switch m.focused {
+	case proto:
+		m.setReqProto()
+	case method:
+		m.setReqMethod()
+	}
+
+	m.blurPrompt(m.focused)
 	m.focused = (m.focused + 1) % len(m.inputs)
+	m.focusPrompt(m.focused)
 }
 
 // prevInput focuses the previous input field
 func (m *model) prevInput() {
+
+	m.blurPrompt(m.focused)
 	m.focused--
 	// Wrap around
 	if m.focused < 0 {
 		m.focused = len(m.inputs) - 1
 	}
+	m.focusPrompt(m.focused)
 }
 
 // Request is executed.
@@ -323,6 +358,8 @@ func NewKeyValInputs(n int) textinput.Model {
 		t.CharLimit = 1
 	case host:
 		t.SetValue("localhost")
+		t.Focus() // start program with first prompt activated
+		t.PromptStyle = promptActiveStyle
 	case method:
 		t.SetValue("GET")
 		t.SetSuggestions(allowedMethods)
@@ -333,12 +370,21 @@ func NewKeyValInputs(n int) textinput.Model {
 
 func initialModel() model {
 	var inputs []textinput.Model
+
+	w, h, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil {
+		panic(err)
+	}
+	screenWidth = w
+	screenHeight = h
+
 	for i := 0; i < fieldsCount; i++ {
 		inputs = append(inputs, NewKeyValInputs(i))
 	}
 	return model{
-		req:    newReqest(),
-		inputs: inputs,
+		req:       newReqest(),
+		inputs:    inputs,
+		KeyStroke: NewKeyStroke(),
 	}
 }
 
@@ -454,8 +500,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		screenWidth = msg.Width
 		screenHeight = msg.Height
 	case tea.KeyMsg:
-		switch msg.Type {
-		case tea.KeyPgDown:
+		switch {
+		case key.Matches(msg, m.keys.PageDown):
 			availableScreenLines := screenHeight - usedScreenLines - 2
 			if m.offset+offsetShift+availableScreenLines <= len(m.resBodyLines) {
 				m.offset += offsetShift
@@ -466,20 +512,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.offset = 0
 				}
 			}
-		case tea.KeyPgUp:
+		case key.Matches(msg, m.keys.PageUp):
 			if m.offset-offsetShift >= 0 {
 				m.offset -= offsetShift
 			} else {
 				m.offset = 0
 			}
-		case tea.KeyCtrlF:
+		case key.Matches(msg, m.keys.FullScreen):
 			if m.fullScreen {
 				m.fullScreen = false
 				return m, tea.ExitAltScreen
 			}
 			m.fullScreen = true
 			return m, tea.EnterAltScreen
-		case tea.KeyCtrlG:
+		case key.Matches(msg, m.keys.Run):
 			m.setStatus(statusInfo, "sending request...")
 			m.clearRespArtefacts()
 			m.incReqCount()
@@ -491,19 +537,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return NewMessageWithTimer(r)
 			}
 			return m, cmd
-		case tea.KeyShiftTab:
+		case key.Matches(msg, m.keys.Prev):
 			m.prevInput()
-		case tea.KeyTab:
-			switch m.focused {
-			case proto:
-				m.setReqProto()
-			case method:
-				m.setReqMethod()
-			}
+		case key.Matches(msg, m.keys.Next):
 			m.nextInput()
-		case tea.KeyCtrlC, tea.KeyCtrlQ:
+		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
-		case tea.KeyEnter:
+		case key.Matches(msg, m.keys.Help):
+			m.help.ShowAll = !m.help.ShowAll
+			return m, nil
+		case key.Matches(msg, m.keys.Enter):
 			switch m.focused {
 			case header, headerVal:
 				m.setReqHeader()
@@ -526,10 +569,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// after handling enter is done, go to next input..
 			m.nextInput()
 		}
-		for i := 0; i < len(m.inputs); i++ {
-			m.inputs[i].Blur()
-		}
-		m.inputs[m.focused].Focus()
 
 	case error:
 		m.setStatus(statusError, msg.Error())
@@ -541,7 +580,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.inputs[i], cmds[i] = m.inputs[i].Update(msg)
 	}
 	return m, tea.Batch(cmds...)
-
 }
 
 // Format status bar.
@@ -583,10 +621,6 @@ func (m model) View() string {
 		reqUrl, resUrl, formValuesEncoded             string
 	)
 
-	saveSession := buttonStyle.Render("Save")
-	loadSession := buttonStyle.Render("Load")
-	// border := rightPanelStyle.Render("")
-
 	// Text inputs
 	for i := 0; i < fieldsCount; i += 2 {
 		prompts = append(
@@ -626,15 +660,21 @@ func (m model) View() string {
 	// add status bar
 	statusBar := m.formatStatusBar()
 
+	leftPanel := lipgloss.JoinVertical(lipgloss.Left, prompts...)
+	lW, _ := lipgloss.Size(leftPanel)
+	rW := screenWidth - lW
+	if rW < 0 {
+		rW = 0
+	}
+	m.help.Width = rW
+	rightPanel := lipgloss.JoinVertical(lipgloss.Center,
+		lipgloss.NewStyle().Width(rW).Render(m.help.View(m.keys)),
+	)
+
 	menu := lipgloss.JoinHorizontal(
 		lipgloss.Top,
-		lipgloss.JoinVertical(lipgloss.Left, prompts...),
-		lipgloss.JoinVertical(lipgloss.Center,
-			lipgloss.NewStyle().Foreground(lipgloss.Color("#00FFFF")).Render("Session"),
-			lipgloss.JoinHorizontal(lipgloss.Top,
-				saveSession, loadSession,
-			),
-		),
+		leftPanel,
+		rightPanel,
 	)
 	usedLines += len(prompts)
 
