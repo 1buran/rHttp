@@ -260,49 +260,101 @@ func (m *model) getRespPageLines() []string {
 	return m.resBodyLines[m.offset:end]
 }
 
+func (m *model) delReqHeader() {
+	name := m.inputs[header].Value()
+	if name != "" {
+		m.req.Header.Del(name)
+	}
+}
+
 func (m *model) setReqHeader() {
+	var s1, s2 []string
 	correctHeader(&m.inputs[header])
 	name := m.inputs[header].Value()
 	val := m.inputs[headerVal].Value()
 	if name != "" && val != "" {
 		m.req.Header.Set(name, val)
+		for h, v := range m.req.Header {
+			s1 = append(s1, h)
+			s2 = append(s1, strings.Join(v, ";"))
+		}
+		m.inputs[header].SetSuggestions(s1)
+		m.inputs[headerVal].SetSuggestions(s2)
 		m.inputs[header].Reset()
 		m.inputs[headerVal].Reset()
 	}
 }
 
+func (m *model) delReqParam() {
+	v, _ := url.ParseQuery(m.req.URL.RawQuery)
+	name := m.inputs[param].Value()
+	if name != "" {
+		v.Del(name)
+		m.req.URL.RawQuery = v.Encode()
+	}
+}
+
 func (m *model) setReqParam() {
+	var s1, s2 []string
 	v, _ := url.ParseQuery(m.req.URL.RawQuery)
 	name := m.inputs[param].Value()
 	val := m.inputs[paramVal].Value()
 	if name != "" && val != "" {
 		v.Set(name, val)
+		for pKey, pVal := range v {
+			s1 = append(s1, pKey)
+			s2 = append(s2, strings.Join(pVal, ", "))
+		}
+		m.inputs[param].SetSuggestions(s1)
+		m.inputs[paramVal].SetSuggestions(s2)
 		m.req.URL.RawQuery = v.Encode()
 		m.inputs[param].Reset()
 		m.inputs[paramVal].Reset()
 	}
 }
 
+func (m *model) delReqCookie() {
+	cookies := m.req.Cookies()
+	m.req.Header.Del("Cookie")
+	name := m.inputs[cookie].Value()
+	if name != "" {
+		for _, c := range cookies {
+			if c.Name != name {
+				m.req.AddCookie(c)
+			}
+		}
+	}
+}
+
 func (m *model) setReqCookie() {
+	var s1, s2 []string
 	name := m.inputs[cookie].Value()
 	val := m.inputs[cookieVal].Value()
 	if name != "" && val != "" {
-		isNew := true
-		for _, i := range m.req.Cookies() {
-			if i.Name == name && i.Value == val {
-				isNew = false
-				break
-			}
-		}
-		if isNew {
+		c, _ := m.req.Cookie(name)
+		if c == nil {
 			m.req.AddCookie(&http.Cookie{Name: name, Value: val})
 		}
+		for _, i := range m.req.Cookies() {
+			s1 = append(s1, i.Name)
+			s2 = append(s2, i.Value)
+		}
+		m.inputs[cookie].SetSuggestions(s1)
+		m.inputs[cookieVal].SetSuggestions(s2)
 		m.inputs[cookie].Reset()
 		m.inputs[cookieVal].Reset()
 	}
 }
 
+func (m *model) delReqForm() {
+	name := m.inputs[form].Value()
+	if name != "" {
+		formValues.Del(name)
+	}
+}
+
 func (m *model) setReqForm() {
+	var s1, s2 []string
 	name := m.inputs[form].Value()
 	val := m.inputs[formVal].Value()
 	if name != "" && val != "" {
@@ -311,6 +363,12 @@ func (m *model) setReqForm() {
 		} else {
 			formValues.Add(name, val)
 		}
+		for k, v := range formValues {
+			s1 = append(s1, k)
+			s2 = append(s2, strings.Join(v, ", "))
+		}
+		m.inputs[form].SetSuggestions(s1)
+		m.inputs[formVal].SetSuggestions(s2)
 		m.req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		m.req.Body = newReadCloser(formValues.Encode())
 		m.inputs[form].Reset()
@@ -400,6 +458,7 @@ func NewKeyValInputs(n int) textinput.Model {
 	t.PromptStyle = promptStyle
 	t.PlaceholderStyle = continueStyle
 	t.TextStyle = textValueStyle
+	t.ShowSuggestions = true
 
 	// set defaults input text
 	switch n {
@@ -409,7 +468,6 @@ func NewKeyValInputs(n int) textinput.Model {
 		t.SetValue("GET")
 		t.PromptStyle = promptActiveStyle
 		t.SetSuggestions(allowedMethods)
-		t.ShowSuggestions = true
 		t.Focus() // start program with first prompt activated
 	case urlPath:
 		t.Width = 52
@@ -443,7 +501,6 @@ func initialModel() model {
 		checkboxes: checkboxes,
 		KeyStroke:  NewKeyStroke(),
 	}
-	// m.nextInput()
 	return m
 }
 
@@ -620,6 +677,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Help):
 			m.help.ShowAll = !m.help.ShowAll
 			return m, nil
+		case key.Matches(msg, m.keys.Delete):
+			switch m.focused {
+			case header, headerVal:
+				m.delReqHeader()
+			case param, paramVal:
+				m.delReqParam()
+			case cookie, cookieVal:
+				m.delReqCookie()
+			case form, formVal:
+				m.delReqForm()
+			}
 		case key.Matches(msg, m.keys.Enter):
 			switch m.focused {
 			case header, headerVal:

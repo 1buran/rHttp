@@ -3,13 +3,14 @@ module github.com/mrBuran/rhttp
 go 1.22.0
 
 require (
+	github.com/alecthomas/chroma/v2 v2.13.0
 	github.com/charmbracelet/bubbles v0.18.0
 	github.com/charmbracelet/bubbletea v0.25.0
 	github.com/charmbracelet/lipgloss v0.10.0
+	golang.org/x/term v0.18.0
 )
 
 require (
-	github.com/alecthomas/chroma/v2 v2.13.0 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/containerd/console v1.0.4-0.20230313162750-1ae8d489ac81 // indirect
@@ -25,6 +26,5 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.18.0 // indirect
-	golang.org/x/term v0.18.0 // indirect
 	golang.org/x/text v0.3.8 // indirect
 )

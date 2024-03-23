@@ -7,7 +7,7 @@ import (
 )
 
 type KeyMap struct {
-	Next, Prev, Quit, Help, Run, FullScreen, PageUp, PageDown, Enter key.Binding
+	Next, Prev, Quit, Help, Run, FullScreen, PageUp, PageDown, Up, Down, Enter, Delete, Autocomplete key.Binding
 }
 
 func (k KeyMap) ShortHelp() []key.Binding {
@@ -15,48 +15,64 @@ func (k KeyMap) ShortHelp() []key.Binding {
 }
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Next, k.Prev, k.Enter, k.Run},
-		{k.PageDown, k.PageUp, k.FullScreen},
-		{k.Help, k.Quit},
+		{k.Next, k.Prev, k.Enter, k.Run, k.Delete},
+		{k.PageDown, k.PageUp, k.Up, k.Down},
+		{k.FullScreen, k.Help, k.Quit},
 	}
 }
 
 var keys = KeyMap{
-	Next: key.NewBinding(
+	Autocomplete: key.NewBinding(
 		key.WithKeys("tab"),
-		key.WithHelp("tab", "next item / autocomplete"),
+		key.WithHelp("tab", "autocomplete"),
+	),
+	Next: key.NewBinding(
+		key.WithKeys("right"),
+		key.WithHelp("→", "next item"),
 	),
 	Prev: key.NewBinding(
-		key.WithKeys("shift+tab"),
-		key.WithHelp("shift+tab", "prev item"),
+		key.WithKeys("left"),
+		key.WithHelp("←", "prev item"),
 	),
 	Quit: key.NewBinding(
 		key.WithKeys("ctrl+q", "ctrl+c"),
-		key.WithHelp("ctrl+q", "quit"),
+		key.WithHelp("Ctrl+q", "quit"),
 	),
 	Help: key.NewBinding(
 		key.WithKeys("ctrl+h"),
-		key.WithHelp("ctrl+h", "toggle help"),
+		key.WithHelp("Ctrl+h", "toggle help"),
+	),
+	Delete: key.NewBinding(
+		key.WithKeys("ctrl+d"),
+		key.WithHelp("Ctrl+d", "delete item"),
 	),
 	Run: key.NewBinding(
 		key.WithKeys("ctrl+g"),
-		key.WithHelp("ctrl+g", "run request"),
+		key.WithHelp("Ctrl+g", "run request"),
 	),
 	FullScreen: key.NewBinding(
 		key.WithKeys("ctrl+f"),
-		key.WithHelp("ctrl+f", "toggle full screen"),
+		key.WithHelp("Ctrl+f", "toggle full screen"),
+	),
+	Up: key.NewBinding(
+		key.WithKeys("up"),
+		key.WithHelp("Up", "scroll up select options"),
+	),
+	Down: key.NewBinding(
+		key.WithKeys("down"),
+		key.WithHelp("Down", "scroll down select options"),
 	),
 	PageUp: key.NewBinding(
 		key.WithKeys("pgup"),
-		key.WithHelp("pgup", "scroll up body of resposne"),
+		key.WithHelp("PgUp", "scroll up body of resposne"),
 	),
 	PageDown: key.NewBinding(
 		key.WithKeys("pgdown"),
-		key.WithHelp("pgdown", "scroll down body of response"),
+		key.WithHelp("PgDn", "scroll down body of response"),
 	),
 	Enter: key.NewBinding(
 		key.WithKeys("enter"),
-		key.WithHelp("enter", "set value / toggle checkbox"),
+		key.WithHelp("Enter", "set value / toggle checkbox"),
 	),
 }
 
