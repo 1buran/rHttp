@@ -61,14 +61,17 @@ const (
 )
 
 const (
-	hotPink       = lipgloss.Color("69")
-	lightPink     = lipgloss.Color("225")
-	darkGray      = lipgloss.Color("#767676")
+	hotPink   = lipgloss.Color("69")
+	lightPink = lipgloss.Color("225")
+	darkGray  = lipgloss.Color("243")
+	lightGray = lipgloss.Color("249")
+
 	purple        = lipgloss.Color("141")
 	brightPurple  = lipgloss.Color("183")
 	brightPurple2 = lipgloss.Color("189")
 	lightBlue     = lipgloss.Color("12")
 	rose          = lipgloss.Color("177")
+	rose2         = lipgloss.Color("219")
 )
 
 var (
@@ -85,15 +88,24 @@ var (
 	promptActiveStyle = lipgloss.NewStyle().Foreground(rose).Bold(true)
 	textStyle         = lipgloss.NewStyle().Foreground(purple)
 	textValueStyle    = lipgloss.NewStyle().Foreground(brightPurple)
-	continueStyle     = lipgloss.NewStyle().Foreground(darkGray)
-	uriStyle          = lipgloss.NewStyle().Foreground(hotPink)
-	headerStyle       = textStyle
-	headerValueStyle  = lipgloss.NewStyle().Foreground(brightPurple)
-	urlStyle          = lipgloss.NewStyle().Inherit(baseStyle).
+
+	placeholderStyle       = lipgloss.NewStyle().Foreground(darkGray)
+	placeholderActiveStyle = lipgloss.NewStyle().Foreground(lightGray)
+
+	uriStyle         = lipgloss.NewStyle().Foreground(hotPink)
+	headerStyle      = textStyle
+	headerValueStyle = lipgloss.NewStyle().Foreground(brightPurple)
+	urlStyle         = lipgloss.NewStyle().Inherit(baseStyle).
 				Foreground(brightPurple2).
 				Bold(true).Padding(0, 1)
 
-	bodyStyle  = lipgloss.NewStyle().Inherit(baseStyle).Foreground(lightPink)
+	bodyStyle = lipgloss.NewStyle().Inherit(baseStyle).Foreground(lightPink)
+
+	pressedKeyStyle = []lipgloss.Style{
+		lipgloss.NewStyle().Foreground(rose2),
+		lipgloss.NewStyle().Foreground(lightPink).Bold(true),
+	}
+
 	titleStyle = lipgloss.NewStyle().Foreground(lightBlue).
 			Bold(true).BorderStyle(lipgloss.NormalBorder()).
 			BorderForeground(lipgloss.Color("63")).
@@ -167,6 +179,7 @@ type model struct {
 	resBodyLines []string
 	fullScreen   bool
 	offset       int
+	pressedKey   string
 	StatusBar
 	KeyStroke
 }
@@ -179,6 +192,7 @@ func (m *model) blurPrompt(i int) {
 		p = i - 1
 	}
 	if i < fieldsCount {
+		m.inputs[i].PlaceholderStyle = placeholderStyle
 		m.inputs[p].PromptStyle = promptStyle
 		m.inputs[i].Blur()
 	} else {
@@ -195,8 +209,10 @@ func (m *model) focusPrompt(i int) {
 		n = i - 1
 	}
 	if i < fieldsCount {
+		m.inputs[i].PlaceholderStyle = placeholderActiveStyle
 		m.inputs[n].PromptStyle = promptActiveStyle
 		m.inputs[i].Focus()
+		m.inputs[i].CursorEnd()
 	} else {
 		idx := checkboxIndex(i)
 		m.checkboxes[idx].style[2] = promptActiveStyle
@@ -456,7 +472,7 @@ func NewKeyValInputs(n int) textinput.Model {
 	t.Placeholder = placeholders[n]
 	t.Width = 25
 	t.PromptStyle = promptStyle
-	t.PlaceholderStyle = continueStyle
+	t.PlaceholderStyle = placeholderStyle
 	t.TextStyle = textValueStyle
 	t.ShowSuggestions = true
 
@@ -631,6 +647,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		screenWidth = msg.Width
 		screenHeight = msg.Height
 	case tea.KeyMsg:
+		m.pressedKey = msg.String()
 		switch {
 		case key.Matches(msg, m.keys.PageDown):
 			availableScreenLines := screenHeight - usedScreenLines - 2
@@ -670,6 +687,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		case key.Matches(msg, m.keys.Prev):
 			m.prevInput()
+			return m, nil
 		case key.Matches(msg, m.keys.Next):
 			m.nextInput()
 		case key.Matches(msg, m.keys.Quit):
@@ -830,6 +848,9 @@ func (m model) View() string {
 	m.help.Width = rW
 	rightPanel := lipgloss.JoinVertical(lipgloss.Center,
 		lipgloss.NewStyle().Width(rW).Render(m.help.View(m.keys)),
+		lipgloss.NewStyle().Width(rW).Render(
+			pressedKeyStyle[0].Render("Pressed key: ")+
+				pressedKeyStyle[1].Render(m.pressedKey)),
 	)
 
 	menu := lipgloss.JoinHorizontal(
