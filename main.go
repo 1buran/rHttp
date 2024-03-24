@@ -555,6 +555,10 @@ func matchContentTypeTolexer(ct string) chroma.Lexer {
 func formatRespBody(ct, s string) []string {
 	var content strings.Builder
 
+	if s == "" {
+		return []string{}
+	}
+
 	// huge one line splitter
 	lp := lipgloss.NewStyle().Width(screenWidth).Padding(0, 1)
 	s = lp.Render(s)
