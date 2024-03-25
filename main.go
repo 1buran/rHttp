@@ -819,18 +819,32 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.help.ShowAll = !m.help.ShowAll
 			return m, nil
 		case key.Matches(msg, m.keys.SaveSession):
-			m.blurAllPrompts()
 			idx := fileinputIndex(sessionSave)
-			m.fileInputs[idx].SetVisible()
-			m.fileInputs[idx].Focus()
-			m.focused = sessionSave
+			if !m.fileInputs[idx].visible {
+				m.blurAllPrompts()
+				m.fileInputs[idx].SetVisible()
+				m.fileInputs[idx].Focus()
+				m.focused = sessionSave
+			} else {
+				m.blurAllPrompts()
+				m.fileInputs[idx].Hide()
+				m.focused = 0
+				m.focusPrompt(0)
+			}
 			// return m, nil
 		case key.Matches(msg, m.keys.LoadSession):
-			m.blurAllPrompts()
 			idx := fileinputIndex(sessionLoad)
-			m.fileInputs[idx].SetVisible()
-			m.fileInputs[idx].Focus()
-			m.focused = sessionLoad
+			if !m.fileInputs[idx].visible {
+				m.blurAllPrompts()
+				m.fileInputs[idx].SetVisible()
+				m.fileInputs[idx].Focus()
+				m.focused = sessionLoad
+			} else {
+				m.blurAllPrompts()
+				m.fileInputs[idx].Hide()
+				m.focused = 0
+				m.focusPrompt(0)
+			}
 			// return m, nil
 		case key.Matches(msg, m.keys.Delete):
 			switch m.focused {
