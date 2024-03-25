@@ -28,7 +28,7 @@ import (
 const (
 	// Bubbletea inputs: instances of [textinput.Model],
 	// in code m.inputs slice contains references to them.
-	method int = iota
+	method = iota
 	host
 	urlPath
 
@@ -58,6 +58,12 @@ const (
 
 	// last index
 	end
+)
+
+// File inputs.
+const (
+	sessionSave = end + iota + 1
+	sessionLoad
 )
 
 const (
@@ -111,6 +117,14 @@ var (
 			BorderForeground(lipgloss.Color("63")).
 			Padding(1).Width(60).AlignHorizontal(lipgloss.Center)
 )
+
+func fileinputIndex(i int) (idx int) {
+	idx = i - end - 1
+	if idx < 0 {
+		idx = 0 // first file input
+	}
+	return
+}
 
 func checkboxIndex(i int) (idx int) {
 	idx = i - fieldsCount - 1
@@ -172,6 +186,7 @@ type model struct {
 	res          *http.Response
 	inputs       []textinput.Model
 	checkboxes   []Checkbox
+	fileInputs   []FileInput
 	cursorIdx    int    // edit type
 	cursorKey    string // edit key of type orderedKeyVal store
 	focused      int
@@ -182,6 +197,19 @@ type model struct {
 	pressedKey   string
 	StatusBar
 	KeyStroke
+}
+
+// Blur all prompts.
+func (m *model) blurAllPrompts() {
+	for i := range m.inputs {
+		m.blurPrompt(i)
+	}
+	for i := range m.checkboxes {
+		m.checkboxes[i].style[2] = promptStyle
+	}
+	for i := range m.fileInputs {
+		m.fileInputs[i].Hide()
+	}
 }
 
 // Blur prompt.
@@ -494,6 +522,7 @@ func NewKeyValInputs(n int) textinput.Model {
 func initialModel() model {
 	var inputs []textinput.Model
 	var checkboxes []Checkbox
+	var fileInputs []FileInput
 
 	w, h, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
@@ -511,10 +540,15 @@ func initialModel() model {
 	c2.SetOn()
 	checkboxes = append(checkboxes, c1, c2)
 
+	f1 := NewFileInput(sessionSave, WriteMode, "Session save: ", "/home/user/ses.json")
+	f2 := NewFileInput(sessionLoad, ReadMode, "Session load: ", "/home/user/ses.json")
+	fileInputs = append(fileInputs, f1, f2)
+
 	m := model{
 		req:        newReqest(),
 		inputs:     inputs,
 		checkboxes: checkboxes,
+		fileInputs: fileInputs,
 		KeyStroke:  NewKeyStroke(),
 	}
 	return m
@@ -623,6 +657,91 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd = make([]tea.Cmd, len(m.inputs))
 
 	switch msg := msg.(type) {
+	case FileInputReader:
+		if msg.Error != nil {
+			m.setStatus(statusError, msg.Error.Error())
+		}
+		// TODO add the test case to check whether this event is came from session file input
+		// switch msg.Id {
+		// case sessionLoad:
+		//		....
+		ses, _ := NewSession(
+			m.req, m.res, m.reqCount,
+			m.StatusBar.reqTime.Microseconds(), formValues, m.resBodyLines)
+		err := ses.Load(msg.Reader)
+		if err != nil {
+			m.setStatus(statusError, err.Error())
+		}
+		// Update state (request and response and some other stuff)
+		// TODO update suggestions and all this to separate function
+		m.reqCount = ses.ReqCount
+		formValues = ses.Request.FormValues
+
+		// Create a new request instance
+		m.req = newReqest()
+
+		// req proto
+		m.req.Proto = ses.Request.Proto
+		idx := checkboxIndex(proto)
+		if m.req.Proto == "HTTP/1.1" {
+			m.checkboxes[idx].SetOn()
+		} else {
+			m.checkboxes[idx].SetOff()
+		}
+
+		// req scheme (http or https)
+		m.req.URL.Scheme = ses.Request.Scheme
+		idx = checkboxIndex(https)
+		if m.req.URL.Scheme == "https" {
+			m.checkboxes[idx].SetOn()
+		} else {
+			m.checkboxes[idx].SetOff()
+		}
+
+		// req method
+		m.req.Method = ses.Request.Method
+		m.inputs[method].SetValue(ses.Request.Method)
+
+		// req host
+		m.req.URL.Host = ses.Request.Host
+		m.inputs[host].SetValue(ses.Request.Host)
+
+		// req url path
+		m.req.URL.Path = ses.Request.UrlPath
+		m.inputs[urlPath].SetValue(ses.Request.UrlPath)
+
+		// req headers
+		m.req.Header = ses.Request.Headers
+
+		// req query params
+		m.req.URL.RawQuery = ses.Request.RawQuery
+
+		// Create a new response instance
+		m.res = &http.Response{Request: m.req}
+		m.res.Status = ses.Response.Status
+		m.res.Proto = ses.Response.Proto
+		m.res.Header = ses.Response.Headers
+		m.resBodyLines = ses.Response.BodyLines
+
+		m.setStatus(statusInfo, "load session from: "+msg.Path)
+		m.focused = 0
+		m.focusPrompt(0)
+		return m, nil
+	case FileInputWriter:
+		if msg.Error != nil {
+			m.setStatus(statusError, msg.Error.Error())
+		}
+		ses, _ := NewSession(
+			m.req, m.res, m.reqCount,
+			m.StatusBar.reqTime.Microseconds(), formValues, m.resBodyLines)
+		err := ses.Save(msg.Writer)
+		if err != nil {
+			m.setStatus(statusError, err.Error())
+		}
+		m.setStatus(statusInfo, "saved session to: "+msg.Path)
+		m.focused = 0
+		m.focusPrompt(0)
+		return m, nil
 	case CheckboxUpdated: // todo: move this to checkboxHandler (Checkbox.Update loop)
 		switch msg.Id {
 		case https:
@@ -699,6 +818,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Help):
 			m.help.ShowAll = !m.help.ShowAll
 			return m, nil
+		case key.Matches(msg, m.keys.SaveSession):
+			m.blurAllPrompts()
+			idx := fileinputIndex(sessionSave)
+			m.fileInputs[idx].SetVisible()
+			m.fileInputs[idx].Focus()
+			m.focused = sessionSave
+			// return m, nil
+		case key.Matches(msg, m.keys.LoadSession):
+			m.blurAllPrompts()
+			idx := fileinputIndex(sessionLoad)
+			m.fileInputs[idx].SetVisible()
+			m.fileInputs[idx].Focus()
+			m.focused = sessionLoad
+			// return m, nil
 		case key.Matches(msg, m.keys.Delete):
 			switch m.focused {
 			case header, headerVal:
@@ -730,6 +863,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.checkboxHandler(msg, proto)
 			case https:
 				return m.checkboxHandler(msg, https)
+			case sessionSave:
+				idx := fileinputIndex(sessionSave)
+				return m, m.fileInputs[idx].OpenFile()
+			case sessionLoad:
+				idx := fileinputIndex(sessionLoad)
+				return m, m.fileInputs[idx].OpenFile()
 			}
 
 			// after handling enter is done, go to next input..
@@ -742,12 +881,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.ClearScreen
 	}
 
+	// Update text inputs
 	for i := 0; i < len(m.inputs); i++ {
 		m.inputs[i], cmds[i] = m.inputs[i].Update(msg)
 	}
-	// for i := 0; i < len(m.checkboxes); i++ {
-	// 	m.checkboxes[i], cmds[i] = m.checkboxes[i].Update(msg)
-	// }
+
+	// Update file input widgets
+	var c tea.Cmd
+	for i := 0; i < len(m.fileInputs); i++ {
+		m.fileInputs[i], c = m.fileInputs[i].Update(msg)
+		cmds = append(cmds, c)
+	}
+
 	return m, tea.Batch(cmds...)
 }
 
@@ -850,12 +995,19 @@ func (m model) View() string {
 		rW = 0
 	}
 	m.help.Width = rW
-	rightPanel := lipgloss.JoinVertical(lipgloss.Center,
+	rpContent := []string{
 		lipgloss.NewStyle().Width(rW).Render(m.help.View(m.keys)),
 		lipgloss.NewStyle().Width(rW).Render(
-			pressedKeyStyle[0].Render("Pressed key: ")+
+			pressedKeyStyle[0].Render("Pressed key: ") +
 				pressedKeyStyle[1].Render(m.pressedKey)),
-	)
+	}
+	for i := 0; i < len(m.fileInputs); i++ {
+		if m.fileInputs[i].IsVisible() {
+			rpContent = append(rpContent,
+				lipgloss.NewStyle().Width(rW).Render(m.fileInputs[i].View()))
+		}
+	}
+	rightPanel := lipgloss.JoinVertical(lipgloss.Center, rpContent...)
 
 	menu := lipgloss.JoinHorizontal(
 		lipgloss.Top,

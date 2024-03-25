@@ -7,7 +7,8 @@ import (
 )
 
 type KeyMap struct {
-	Next, Prev, Quit, Help, Run, FullScreen, PageUp, PageDown, Up, Down, Enter, Delete, Autocomplete key.Binding
+	Next, Prev, Quit, Help, Run, FullScreen, PageUp, PageDown, Up, Down, Enter,
+	Delete, Autocomplete, LoadSession, SaveSession key.Binding
 }
 
 func (k KeyMap) ShortHelp() []key.Binding {
@@ -17,11 +18,19 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Next, k.Prev, k.Enter, k.Run, k.Delete},
 		{k.PageDown, k.PageUp, k.Up, k.Down},
-		{k.FullScreen, k.Help, k.Quit},
+		{k.FullScreen, k.Help, k.Quit, k.LoadSession, k.SaveSession},
 	}
 }
 
 var keys = KeyMap{
+	LoadSession: key.NewBinding(
+		key.WithKeys("ctrl+l"),
+		key.WithHelp("ctrl+l", "load session"),
+	),
+	SaveSession: key.NewBinding(
+		key.WithKeys("ctrl+s"),
+		key.WithHelp("ctrl+s", "save session"),
+	),
 	Autocomplete: key.NewBinding(
 		key.WithKeys("tab"),
 		key.WithHelp("tab", "autocomplete"),
