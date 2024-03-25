@@ -660,6 +660,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case FileInputReader:
 		if msg.Error != nil {
 			m.setStatus(statusError, msg.Error.Error())
+			return m, nil
 		}
 		// TODO add the test case to check whether this event is came from session file input
 		// switch msg.Id {
@@ -671,6 +672,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		err := ses.Load(msg.Reader)
 		if err != nil {
 			m.setStatus(statusError, err.Error())
+			return m, nil
 		}
 		// Update state (request and response and some other stuff)
 		// TODO update suggestions and all this to separate function
@@ -730,6 +732,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case FileInputWriter:
 		if msg.Error != nil {
 			m.setStatus(statusError, msg.Error.Error())
+			return m, nil
 		}
 		ses, _ := NewSession(
 			m.req, m.res, m.reqCount,
