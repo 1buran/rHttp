@@ -139,8 +139,17 @@ func newReqest() (r *http.Request) {
 	return
 }
 
+// Prepare request before send.
+func prepareRequest(r *http.Request) {
+	if len(formValues) > 0 {
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		r.Body = newReadCloser(formValues.Encode())
+	}
+}
+
 func sendRequest(r *http.Request) (*http.Response, error) {
 	http_cli := http.Client{Timeout: 2 * time.Second}
+	prepareRequest(r)
 	return http_cli.Do(r)
 }
 
@@ -414,7 +423,6 @@ func (m *model) setReqForm() {
 		m.inputs[form].SetSuggestions(s1)
 		m.inputs[formVal].SetSuggestions(s2)
 		m.req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		m.req.Body = newReadCloser(formValues.Encode())
 		m.inputs[form].Reset()
 		m.inputs[formVal].Reset()
 	}
