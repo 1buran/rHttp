@@ -659,6 +659,70 @@ func (m *model) checkboxHandler(msg tea.Msg, i int) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// Load session: create and populate request and response from the given file.
+func loadSession(m model, r io.Reader) (tea.Model, tea.Cmd) {
+	ses, _ := NewSession(
+		m.req, m.res, m.reqCount,
+		m.StatusBar.reqTime.Microseconds(), formValues, m.resBodyLines)
+	err := ses.Load(r)
+	if err != nil {
+		m.setStatus(statusError, err.Error())
+		return m, nil
+	}
+	// Update state (request and response and some other stuff)
+	// TODO update suggestions and all this to separate function
+	m.reqCount = ses.ReqCount
+	formValues = ses.Request.FormValues
+
+	// Create a new request instance
+	m.req = newReqest()
+
+	// req proto
+	m.req.Proto = ses.Request.Proto
+	idx := checkboxIndex(proto)
+	if m.req.Proto == "HTTP/1.1" {
+		m.checkboxes[idx].SetOn()
+	} else {
+		m.checkboxes[idx].SetOff()
+	}
+
+	// req scheme (http or https)
+	m.req.URL.Scheme = ses.Request.Scheme
+	idx = checkboxIndex(https)
+	if m.req.URL.Scheme == "https" {
+		m.checkboxes[idx].SetOn()
+	} else {
+		m.checkboxes[idx].SetOff()
+	}
+
+	// req method
+	m.req.Method = ses.Request.Method
+	m.inputs[method].SetValue(ses.Request.Method)
+
+	// req host
+	m.req.URL.Host = ses.Request.Host
+	m.inputs[host].SetValue(ses.Request.Host)
+
+	// req url path
+	m.req.URL.Path = ses.Request.UrlPath
+	m.inputs[urlPath].SetValue(ses.Request.UrlPath)
+
+	// req headers
+	m.req.Header = ses.Request.Headers
+
+	// req query params
+	m.req.URL.RawQuery = ses.Request.RawQuery
+
+	// Create a new response instance
+	m.res = &http.Response{Request: m.req}
+	m.res.Status = ses.Response.Status
+	m.res.Proto = ses.Response.Proto
+	m.res.Header = ses.Response.Headers
+	m.resBodyLines = ses.Response.BodyLines
+
+	return m, nil
+}
+
 var usedScreenLines int
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -670,73 +734,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.setStatus(statusError, msg.Error.Error())
 			return m, nil
 		}
-		// TODO add the test case to check whether this event is came from session file input
-		// switch msg.Id {
-		// case sessionLoad:
-		//		....
-		ses, _ := NewSession(
-			m.req, m.res, m.reqCount,
-			m.StatusBar.reqTime.Microseconds(), formValues, m.resBodyLines)
-		err := ses.Load(msg.Reader)
-		if err != nil {
-			m.setStatus(statusError, err.Error())
-			return m, nil
+		switch msg.Id {
+		case sessionLoad:
+			m.setStatus(statusInfo, "load session from: "+msg.Path)
+			m.focused = 0
+			m.focusPrompt(0)
+			return loadSession(m, msg.Reader)
 		}
-		// Update state (request and response and some other stuff)
-		// TODO update suggestions and all this to separate function
-		m.reqCount = ses.ReqCount
-		formValues = ses.Request.FormValues
-
-		// Create a new request instance
-		m.req = newReqest()
-
-		// req proto
-		m.req.Proto = ses.Request.Proto
-		idx := checkboxIndex(proto)
-		if m.req.Proto == "HTTP/1.1" {
-			m.checkboxes[idx].SetOn()
-		} else {
-			m.checkboxes[idx].SetOff()
-		}
-
-		// req scheme (http or https)
-		m.req.URL.Scheme = ses.Request.Scheme
-		idx = checkboxIndex(https)
-		if m.req.URL.Scheme == "https" {
-			m.checkboxes[idx].SetOn()
-		} else {
-			m.checkboxes[idx].SetOff()
-		}
-
-		// req method
-		m.req.Method = ses.Request.Method
-		m.inputs[method].SetValue(ses.Request.Method)
-
-		// req host
-		m.req.URL.Host = ses.Request.Host
-		m.inputs[host].SetValue(ses.Request.Host)
-
-		// req url path
-		m.req.URL.Path = ses.Request.UrlPath
-		m.inputs[urlPath].SetValue(ses.Request.UrlPath)
-
-		// req headers
-		m.req.Header = ses.Request.Headers
-
-		// req query params
-		m.req.URL.RawQuery = ses.Request.RawQuery
-
-		// Create a new response instance
-		m.res = &http.Response{Request: m.req}
-		m.res.Status = ses.Response.Status
-		m.res.Proto = ses.Response.Proto
-		m.res.Header = ses.Response.Headers
-		m.resBodyLines = ses.Response.BodyLines
-
-		m.setStatus(statusInfo, "load session from: "+msg.Path)
-		m.focused = 0
-		m.focusPrompt(0)
-		return m, nil
 	case FileInputWriter:
 		if msg.Error != nil {
 			m.setStatus(statusError, msg.Error.Error())
@@ -989,7 +993,7 @@ func (m model) View() string {
 	reqHeaders = headersPrintf(m.req.Header)
 
 	// Request encoded form values
-	if m.req.Body != nil {
+	if len(formValues) > 0 {
 		formValuesEncoded = " " + bodyStyle.Render(formValues.Encode())
 	}
 
