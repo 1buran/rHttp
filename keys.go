@@ -36,12 +36,12 @@ var keys = KeyMap{
 		key.WithHelp("tab", "autocomplete"),
 	),
 	Next: key.NewBinding(
-		key.WithKeys("right"),
-		key.WithHelp("→", "next item"),
+		key.WithKeys("shift+right"),
+		key.WithHelp("shift+right", "next item"),
 	),
 	Prev: key.NewBinding(
-		key.WithKeys("left"),
-		key.WithHelp("←", "prev item"),
+		key.WithKeys("shift+left"),
+		key.WithHelp("shift+left", "prev item"),
 	),
 	Quit: key.NewBinding(
 		key.WithKeys("ctrl+q", "ctrl+c"),
