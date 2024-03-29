@@ -54,7 +54,6 @@ const (
 	// Index of checkbox can be calculated in this way:
 	//   m.checkboxes[i - fieldsCount - 1]
 	https
-	proto
 
 	// last index
 	end
@@ -86,9 +85,8 @@ var (
 	offsetShift  = 5
 	baseStyle    = lipgloss.NewStyle().Width(screenWidth)
 
-	checkboxOnStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true).PaddingRight(21)
-	checkboxOffStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("8")).PaddingRight(21)
-	checkboxProtoStyle = lipgloss.NewStyle().Foreground(brightPurple).Bold(true)
+	checkboxOnStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true).PaddingRight(21)
+	checkboxOffStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8")).PaddingRight(21)
 
 	promptStyle       = lipgloss.NewStyle().Foreground(hotPink).Bold(true)
 	promptActiveStyle = lipgloss.NewStyle().Foreground(rose).Bold(true)
@@ -443,14 +441,6 @@ func (m *model) setReqMethod() {
 	}
 }
 
-func (m *model) setReqProto(b bool) {
-	if b {
-		m.req.Proto = "HTTP/1.1"
-	} else {
-		m.req.Proto = "HTTP/1.0"
-	}
-}
-
 func (m *model) setReqUrlPath() {
 	val := m.inputs[urlPath].Value()
 	m.req.URL.Path = val
@@ -544,9 +534,7 @@ func initialModel() model {
 	}
 
 	c1 := NewCheckbox(https, "https  ", "⟨on⟩", "⟨off⟩", promptStyle, checkboxOnStyle, checkboxOffStyle)
-	c2 := NewCheckbox(proto, "HTTP/1.", "⟨1⟩", "⟨0⟩", promptStyle, checkboxProtoStyle, checkboxProtoStyle)
-	c2.SetOn()
-	checkboxes = append(checkboxes, c1, c2)
+	checkboxes = append(checkboxes, c1)
 
 	f1 := NewFileInput(sessionSave, WriteMode, "Session save: ", "/home/user/ses.json")
 	f2 := NewFileInput(sessionLoad, ReadMode, "Session load: ", "/home/user/ses.json")
@@ -677,18 +665,9 @@ func loadSession(m model, r io.Reader) (tea.Model, tea.Cmd) {
 	// Create a new request instance
 	m.req = newReqest()
 
-	// req proto
-	m.req.Proto = ses.Request.Proto
-	idx := checkboxIndex(proto)
-	if m.req.Proto == "HTTP/1.1" {
-		m.checkboxes[idx].SetOn()
-	} else {
-		m.checkboxes[idx].SetOff()
-	}
-
 	// req scheme (http or https)
 	m.req.URL.Scheme = ses.Request.Scheme
-	idx = checkboxIndex(https)
+	idx := checkboxIndex(https)
 	if m.req.URL.Scheme == "https" {
 		m.checkboxes[idx].SetOn()
 	} else {
@@ -761,8 +740,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Id {
 		case https:
 			m.setHttps(msg.On)
-		case proto:
-			m.setReqProto(msg.On)
 		}
 	case Timer:
 		m.reqTime = msg.elapsedTime()
@@ -874,8 +851,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case key.Matches(msg, m.keys.ToggleCheckbox):
 			switch m.focused {
-			case proto:
-				return m.checkboxHandler(msg, proto)
 			case https:
 				return m.checkboxHandler(msg, https)
 			}
@@ -933,8 +908,10 @@ func (m *model) formatStatusBar() string {
 	w := lipgloss.Width
 
 	var resStatusCode int
+	var proto string
 	if m.reqIsExecuted() {
 		resStatusCode = m.res.StatusCode
+		proto = m.res.Proto
 	}
 
 	status := m.getStatusBadge("STATUS")
@@ -942,7 +919,7 @@ func (m *model) formatStatusBar() string {
 	reqTime := reqTimeStyle.Render(m.getReqTime())
 
 	indicator := indicatorStyle.Render(
-		getStatusIndicator(resStatusCode, m.req.Proto))
+		getStatusIndicator(resStatusCode, proto))
 
 	statusVal := statusText.Copy().
 		Width(screenWidth - w(status) - w(reqCounter) - w(reqTime) - w(indicator)).
@@ -984,13 +961,12 @@ func (m model) View() string {
 		prompts,
 		lipgloss.JoinHorizontal(
 			lipgloss.Top, " ",
-			m.checkboxes[checkboxIndex(https)].View(),
-			m.checkboxes[checkboxIndex(proto)].View()),
+			m.checkboxes[checkboxIndex(https)].View()),
 	)
 
 	// Request URL
 	reqUrl = urlStyle.Render(
-		lipgloss.JoinHorizontal(lipgloss.Top, m.req.Proto, " ", m.req.Method, " ", m.req.URL.String()))
+		lipgloss.JoinHorizontal(lipgloss.Top, m.req.Method, " ", m.req.URL.String()))
 
 	// Request headers
 	reqHeaders = headersPrintf(m.req.Header)

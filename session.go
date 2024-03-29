@@ -9,7 +9,6 @@ import (
 // Request reflects the [http.Request] params.
 type Request struct {
 	Host       string              `json:"host"`
-	Proto      string              `json:"proto"`
 	Scheme     string              `json:"scheme"`
 	Method     string              `json:"method"`
 	UrlPath    string              `json:"url"`
@@ -41,7 +40,6 @@ func NewSession(rq *http.Request, rs *http.Response, rqc int, rqt int64, rqf map
 
 	// populate Request with [http.Request] data
 	if rq != nil {
-		req.Proto = rq.Proto
 		req.Method = rq.Method
 		req.Scheme = rq.URL.Scheme
 		req.Host = rq.URL.Host

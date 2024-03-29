@@ -23,7 +23,6 @@ func TestSession(t *testing.T) {
 	})
 
 	rq = &http.Request{
-		Proto:  "HTTP/1.1",
 		Method: "GET",
 		URL: &url.URL{
 			Host:     "localhost",
@@ -54,9 +53,6 @@ func TestSession(t *testing.T) {
 		}
 		if s.ReqCount != 10 {
 			t.Errorf("expected req count: 10, got: %d", s.ReqCount)
-		}
-		if s.Request.Proto != "HTTP/1.1" {
-			t.Errorf("expected req proto HTTP/1.1, got: %s", s.Request.Proto)
 		}
 		if s.Response.Status != "200 OK" {
 			t.Errorf("expected res status: 200 OK, got: %s", s.Response.Status)
@@ -105,9 +101,6 @@ func TestSession(t *testing.T) {
 
 		if s.ReqCount != 10 {
 			t.Errorf("expected req count: 10, got: %d", s.ReqCount)
-		}
-		if s.Request.Proto != "HTTP/1.1" {
-			t.Errorf("expected req proto HTTP/1.1, got: %s", s.Request.Proto)
 		}
 		if s.Response.Status != "200 OK" {
 			t.Errorf("expected res status: 200 OK, got: %s", s.Response.Status)
