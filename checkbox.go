@@ -59,7 +59,7 @@ func (c Checkbox) Update(msg tea.Msg) (Checkbox, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.Type {
-		case tea.KeyEnter: // toggle checkbox
+		case tea.KeySpace: // toggle checkbox
 			if c.state == on {
 				c.state = off
 			} else {

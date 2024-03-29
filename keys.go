@@ -8,7 +8,7 @@ import (
 
 type KeyMap struct {
 	Next, Prev, Quit, Help, Run, FullScreen, PageUp, PageDown, Up, Down, Enter,
-	Delete, Autocomplete, LoadSession, SaveSession key.Binding
+	Delete, Autocomplete, LoadSession, SaveSession, ToggleCheckbox key.Binding
 }
 
 func (k KeyMap) ShortHelp() []key.Binding {
@@ -81,7 +81,11 @@ var keys = KeyMap{
 	),
 	Enter: key.NewBinding(
 		key.WithKeys("enter"),
-		key.WithHelp("Enter", "set value / toggle checkbox"),
+		key.WithHelp("Enter", "set value"),
+	),
+	ToggleCheckbox: key.NewBinding(
+		key.WithKeys(" "),
+		key.WithHelp("Space", "set value"),
 	),
 }
 

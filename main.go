@@ -872,6 +872,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case form, formVal:
 				m.delReqForm()
 			}
+		case key.Matches(msg, m.keys.ToggleCheckbox):
+			switch m.focused {
+			case proto:
+				return m.checkboxHandler(msg, proto)
+			case https:
+				return m.checkboxHandler(msg, https)
+			}
 		case key.Matches(msg, m.keys.Enter):
 			switch m.focused {
 			case header, headerVal:
@@ -888,10 +895,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.setReqUrlPath()
 			case host:
 				m.setReqHost()
-			case proto:
-				return m.checkboxHandler(msg, proto)
-			case https:
-				return m.checkboxHandler(msg, https)
 			case sessionSave:
 				idx := fileinputIndex(sessionSave)
 				return m, m.fileInputs[idx].OpenFile()
@@ -1024,6 +1027,9 @@ func (m model) View() string {
 		rW = 0
 	}
 	m.help.Width = rW
+	if m.pressedKey == " " {
+		m.pressedKey = "space"
+	}
 	rpContent := []string{
 		lipgloss.NewStyle().Width(rW).Render(m.help.View(m.keys)),
 		lipgloss.NewStyle().Width(rW).Render(
