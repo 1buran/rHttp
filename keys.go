@@ -16,8 +16,8 @@ func (k KeyMap) ShortHelp() []key.Binding {
 }
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Next, k.Prev, k.Enter, k.Run, k.Delete},
-		{k.PageDown, k.PageUp, k.Up, k.Down},
+		{k.Next, k.Prev, k.Enter, k.Run, k.Delete, k.ToggleCheckbox},
+		{k.PageDown, k.PageUp, k.Up, k.Down, k.Autocomplete},
 		{k.FullScreen, k.Help, k.Quit, k.LoadSession, k.SaveSession},
 	}
 }
@@ -85,7 +85,7 @@ var keys = KeyMap{
 	),
 	ToggleCheckbox: key.NewBinding(
 		key.WithKeys(" "),
-		key.WithHelp("Space", "set value"),
+		key.WithHelp("Space", "toggle checkbox"),
 	),
 }
 
