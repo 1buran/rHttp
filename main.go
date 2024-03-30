@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"io"
 	"log"
 	"net/http"
@@ -54,6 +56,7 @@ const (
 	// Index of checkbox can be calculated in this way:
 	//   m.checkboxes[i - fieldsCount - 1]
 	https
+	autoformat
 
 	// last index
 	end
@@ -534,7 +537,8 @@ func initialModel() model {
 	}
 
 	c1 := NewCheckbox(https, "https  ", "⟨on⟩", "⟨off⟩", promptStyle, checkboxOnStyle, checkboxOffStyle)
-	checkboxes = append(checkboxes, c1)
+	c2 := NewCheckbox(autoformat, "Auto format JSON ", "⟨on⟩", "⟨off⟩", promptStyle, checkboxOnStyle, checkboxOffStyle)
+	checkboxes = append(checkboxes, c1, c2)
 
 	f1 := NewFileInput(sessionSave, WriteMode, "Session save: ", "/home/user/ses.json")
 	f2 := NewFileInput(sessionLoad, ReadMode, "Session load: ", "/home/user/ses.json")
@@ -582,16 +586,18 @@ func matchContentTypeTolexer(ct string) chroma.Lexer {
 	return nil
 }
 
-func formatRespBody(ct, s string) []string {
+func autoFormatJSON(s string) string {
+	var out bytes.Buffer
+	json.Indent(&out, []byte(s), "", "\t")
+	return out.String()
+}
+
+func formatRespBody(ct, s string, autoformat bool) []string {
 	var content strings.Builder
 
 	if s == "" {
 		return []string{}
 	}
-
-	// huge one line splitter
-	lp := lipgloss.NewStyle().Width(screenWidth).Padding(0, 1)
-	s = lp.Render(s)
 
 	lexer := matchContentTypeTolexer(ct)
 	if lexer == nil {
@@ -599,6 +605,14 @@ func formatRespBody(ct, s string) []string {
 		lexer = lexers.Analyse(s)
 	}
 	lexer = chroma.Coalesce(lexer)
+
+	if autoformat && lexer.Config().Name == "JSON" {
+		s = autoFormatJSON(s)
+	}
+
+	// huge one line splitter
+	lp := lipgloss.NewStyle().Width(screenWidth).Padding(0, 1)
+	s = lp.Render(s)
 
 	// pick a style
 	style := styles.Get("catppuccin-mocha")
@@ -752,7 +766,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		defer msg.Body.Close()
 		buf, _ := io.ReadAll(msg.Body)
 		m.res = msg
-		m.resBodyLines = formatRespBody(m.res.Header.Get("content-type"), string(buf))
+		m.resBodyLines = formatRespBody(
+			m.res.Header.Get("content-type"), string(buf),
+			m.checkboxes[checkboxIndex(autoformat)].IsOn())
 		m.setStatus(statusInfo, "request is executed, response taken")
 
 	case tea.WindowSizeMsg:
@@ -853,6 +869,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch m.focused {
 			case https:
 				return m.checkboxHandler(msg, https)
+			case autoformat:
+				return m.checkboxHandler(msg, autoformat)
 			}
 		case key.Matches(msg, m.keys.Enter):
 			switch m.focused {
@@ -961,7 +979,9 @@ func (m model) View() string {
 		prompts,
 		lipgloss.JoinHorizontal(
 			lipgloss.Top, " ",
-			m.checkboxes[checkboxIndex(https)].View()),
+			m.checkboxes[checkboxIndex(https)].View(),
+			m.checkboxes[checkboxIndex(autoformat)].View(),
+		),
 	)
 
 	// Request URL
