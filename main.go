@@ -449,7 +449,7 @@ func (m *model) setReqUrlPath() {
 func (m *model) setReqHost() {
 	val := m.inputs[host].Value()
 	m.req.URL.Host = val
-
+	m.req.Host = val
 }
 
 func (m *model) restoreReqMethod() {
