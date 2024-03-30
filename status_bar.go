@@ -38,7 +38,7 @@ var (
 	statusBadgeOk = lipgloss.NewStyle().Inherit(statusBadge).
 			Background(lipgloss.Color("#2e8048")).Padding(0, 1)
 	statusBadgeWarning = lipgloss.NewStyle().Inherit(statusBadge).
-				Background(lipgloss.Color("#E3BC68")).Padding(0, 1)
+				Background(lipgloss.Color("130")).Padding(0, 1)
 
 	reqCountStyle = statusNugget.Copy().
 			Background(lipgloss.Color("#A550DF")).

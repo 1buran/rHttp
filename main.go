@@ -148,8 +148,16 @@ func prepareRequest(r *http.Request) {
 	}
 }
 
+var redirects []string
+
+func handleRedirect(req *http.Request, via []*http.Request) error {
+	redirects = append(redirects, strconv.Itoa(req.Response.StatusCode)+" "+req.URL.String())
+	return nil
+}
+
 func sendRequest(r *http.Request) (*http.Response, error) {
-	http_cli := http.Client{Timeout: 2 * time.Second}
+	redirects = nil
+	http_cli := http.Client{Timeout: 2 * time.Second, CheckRedirect: handleRedirect}
 	prepareRequest(r)
 	return http_cli.Do(r)
 }
@@ -770,6 +778,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.res.Header.Get("content-type"), string(buf),
 			m.checkboxes[checkboxIndex(autoformat)].IsOn())
 		m.setStatus(statusInfo, "request is executed, response taken")
+		if len(redirects) > 0 {
+			m.setStatus(statusWarning, "redirects: "+strings.Join(redirects, " → "))
+		}
 
 	case tea.WindowSizeMsg:
 		m.setStatus(
