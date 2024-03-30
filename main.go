@@ -1060,7 +1060,7 @@ func (m model) View() string {
 	resInfo = append(resInfo, "")
 	usedLines += len(resInfo)
 
-	usedScreenLines = usedLines
+	usedScreenLines = usedLines + 1
 	resBodyLines = m.getRespPageLines()
 	resInfo = append(resInfo, resBodyLines...)
 	resInfoRendered := lipgloss.JoinVertical(lipgloss.Top, resInfo...)
