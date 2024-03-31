@@ -4,6 +4,10 @@
 
 REPL for HTTP.
 
+![demo](https://i.imgur.com/zjGUZi1.mp4)
+
+## Introduction
+
 This is project was created when I needed something like REPL for http request in terminal,
 there are many great tools exist: Postman, Insomnia, httpie, curl etc
 but i wanted something little bit different, something lightweight, simple and fast,
@@ -27,3 +31,32 @@ Currently implemented:
 In progress:
 - Easy manipulation of JSON request payload (crud of simple data structure)
 - Load JSON request payload from file
+- Config file for change key bindings, default settings
+
+> [!CAUTION]
+> The project is under active development, features or how do they work may change!
+
+## Installation
+
+```sh
+go install github.com/mrBuran/rHttp@latest
+```
+
+## Key Bindings
+
+| Keys                 | Action                                     |
+|:---------------------|:-------------------------------------------|
+| `Shift+Right`        | next item of menu                          |
+| `Shift+Left`         | prev item of menu                          |
+| `Enter`              | set value of text intput                   |
+| `Ctrl+g`             | run request                                |
+| `Ctrl+d`             | delete item  (param, header or form value) |
+| `Space`              | toggle checkbox                            |
+| `PageDown`           | scroll down body of response               |
+| `PageUp`             | scroll up body of response                 |
+| `Tab`                | autocomplete                               |
+| `Ctrl+f`             | toggle fullscreen mode                     |
+| `Ctl+h`              | toggle full help                           |
+| `Ctrl+l`             | load session                               |
+| `Ctrl+s`             | save session                               |
+| `Ctrl+q` or `Ctrl+c` | quit                                       |
