@@ -1,5 +1,5 @@
 # rHttp
-[![codecov](https://codecov.io/github/mrBuran/rHttp/graph/badge.svg?token=NNJYP8B5V8)](https://codecov.io/github/mrBuran/redmine)
+[![codecov](https://codecov.io/gh/mrBuran/rHttp/graph/badge.svg?token=20IW0GY8R9)](https://codecov.io/gh/mrBuran/rHttp)
 [![goreportcard](https://goreportcard.com/badge/github.com/mrBuran/rHttp)](https://goreportcard.com/report/github.com/mrBuran/redmine)
 
 REPL for HTTP.
