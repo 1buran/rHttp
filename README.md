@@ -4,7 +4,7 @@
 
 REPL for HTTP.
 
-![demo](https://i.imgur.com/zjGUZi1.mp4)
+![Made with VHS](https://vhs.charm.sh/vhs-2gIITsFEnXs0jNKfOAk8gF.gif)
 
 ## Introduction
 
