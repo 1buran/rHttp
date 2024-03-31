@@ -17,8 +17,8 @@ func (k KeyMap) ShortHelp() []key.Binding {
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Next, k.Prev, k.Enter, k.Run, k.Delete, k.ToggleCheckbox},
-		{k.PageDown, k.PageUp, k.Up, k.Down, k.Autocomplete},
-		{k.FullScreen, k.Help, k.Quit, k.LoadSession, k.SaveSession},
+		{k.FullScreen, k.Help, k.Quit, k.LoadSession, k.SaveSession, k.Autocomplete},
+		{k.PageDown, k.PageUp},
 	}
 }
 
@@ -62,14 +62,6 @@ var keys = KeyMap{
 	FullScreen: key.NewBinding(
 		key.WithKeys("ctrl+f"),
 		key.WithHelp("Ctrl+f", "toggle full screen"),
-	),
-	Up: key.NewBinding(
-		key.WithKeys("up"),
-		key.WithHelp("Up", "scroll up select options"),
-	),
-	Down: key.NewBinding(
-		key.WithKeys("down"),
-		key.WithHelp("Down", "scroll down select options"),
 	),
 	PageUp: key.NewBinding(
 		key.WithKeys("pgup"),
