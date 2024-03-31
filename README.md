@@ -4,7 +4,7 @@
 
 REPL for HTTP.
 
-![Made with VHS](https://vhs.charm.sh/vhs-2gIITsFEnXs0jNKfOAk8gF.gif)
+![Made with VHS](https://i.imgur.com/ck7chhL.gif)
 
 ## Introduction
 
