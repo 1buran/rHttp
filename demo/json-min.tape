@@ -1,4 +1,4 @@
-Output json-min.gif
+Output demo/json-min.gif
 
 Set Shell "bash"
 Set FontSize 16
@@ -12,7 +12,7 @@ Set PlaybackSpeed 0.5
 Set CursorBlink false
 
 Require go
-Type "cd .. && go run ." Enter
+Type "go run ." Enter
 
 Sleep 3
 Ctrl + h
