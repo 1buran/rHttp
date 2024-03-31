@@ -4,7 +4,11 @@
 
 REPL for HTTP.
 
-![Made with VHS](https://vhs.charm.sh/vhs-2gIITsFEnXs0jNKfOAk8gF.gif)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://vhs.charm.sh/vhs-2gIITsFEnXs0jNKfOAk8gF.gif">
+  <source media="(prefers-color-scheme: light)" srcset="https://vhs.charm.sh/vhs-2gIITsFEnXs0jNKfOAk8gF.gif">
+  <img width="600" alt="Example of usage rHttp" src="https://vhs.charm.sh/vhs-2gIITsFEnXs0jNKfOAk8gF.gif">
+</picture>
 
 ## Introduction
 
