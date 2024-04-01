@@ -3,7 +3,7 @@
 [![goreportcard](https://goreportcard.com/badge/github.com/mrBuran/rHttp)](https://goreportcard.com/report/github.com/mrBuran/redmine)
 ![Main demo](https://i.imgur.com/rezbXW9.gif)
 
-#### Responses with minified JSON 
+#### Responses with minified JSON
 ![JSON min](https://i.imgur.com/YW7GrFu.gif)
 
 #### Load session
@@ -63,3 +63,46 @@ go install github.com/mrBuran/rHttp@latest
 | `Ctrl+l`             | load session                               |
 | `Ctrl+s`             | save session                               |
 | `Ctrl+q` or `Ctrl+c` | quit                                       |
+
+## Tasks
+
+These are tasks of [xc](https://github.com/joerdav/xc) runner.
+
+### vhs
+
+Run VHS fo update gifs.
+
+```
+vhs demo/main.tape
+vhs demo/json-min.tape
+vhs demo/load-session.tape
+```
+### imgur
+
+Upload to Imgur and update readme.
+
+```
+url=`curl --location https://api.imgur.com/3/image \
+     --header "Authorization: Client-ID ${clientId}" \
+     --form image=@demo/main.gif \
+     --form type=image \
+     --form title=rHttp \
+     --form description=Demo | jq -r '.data.link'`
+sed -i "s#^\!\[Main demo\].*#![Main demo]($url)#" README.md
+
+url=`curl --location https://api.imgur.com/3/image \
+     --header "Authorization: Client-ID ${clientId}" \
+     --form image=@demo/json-min.gif \
+     --form type=image \
+     --form title=rHttp \
+     --form description=Demo | jq -r '.data.link'`
+sed -i "s#^\!\[JSON min\].*#![JSON min]($url)#" README.md
+
+url=`curl --location https://api.imgur.com/3/image \
+     --header "Authorization: Client-ID ${clientId}" \
+     --form image=@demo/load-session.gif \
+     --form type=image \
+     --form title=rHttp \
+     --form description=Demo | jq -r '.data.link'`
+sed -i "s#^\!\[Load session\].*#![Load session]($url)#" README.md
+```
