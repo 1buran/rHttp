@@ -544,8 +544,8 @@ func initialModel() model {
 		inputs = append(inputs, NewKeyValInputs(i))
 	}
 
-	c1 := NewCheckbox(https, "https  ", "⟨on⟩", "⟨off⟩", promptStyle, checkboxOnStyle, checkboxOffStyle)
-	c2 := NewCheckbox(autoformat, "Auto format JSON ", "⟨on⟩", "⟨off⟩", promptStyle, checkboxOnStyle, checkboxOffStyle)
+	c1 := NewCheckbox(https, "https  ", "⟨on⟩ ", "⟨off⟩", promptStyle, checkboxOnStyle, checkboxOffStyle)
+	c2 := NewCheckbox(autoformat, "Auto format JSON ", "⟨on⟩ ", "⟨off⟩", promptStyle, checkboxOnStyle, checkboxOffStyle)
 	checkboxes = append(checkboxes, c1, c2)
 
 	f1 := NewFileInput(sessionSave, WriteMode, "Session save: ", "/home/user/ses.json")
