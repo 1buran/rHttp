@@ -1,6 +1,6 @@
 # rHttp - REPL for HTTP
-[![codecov](https://codecov.io/gh/mrBuran/rHttp/graph/badge.svg?token=20IW0GY8R9)](https://codecov.io/gh/mrBuran/rHttp)
-[![goreportcard](https://goreportcard.com/badge/github.com/mrBuran/rHttp)](https://goreportcard.com/report/github.com/mrBuran/redmine)
+[![codecov](https://codecov.io/gh/1buran/rHttp/graph/badge.svg?token=20IW0GY8R9)](https://codecov.io/gh/1buran/rHttp)
+[![goreportcard](https://goreportcard.com/badge/github.com/1buran/rHttp)](https://goreportcard.com/report/github.com/1buran/redmine)
 ![Main demo](https://i.imgur.com/IUHwX2z.gif)
 
 #### Responses with minified JSON
@@ -42,7 +42,7 @@ In progress:
 ## Installation
 
 ```sh
-go install github.com/mrBuran/rhttp@latest
+go install github.com/1buran/rhttp@latest
 ```
 
 ## Key Bindings

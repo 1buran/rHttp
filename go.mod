@@ -1,4 +1,4 @@
-module github.com/mrBuran/rhttp
+module github.com/1buran/rhttp
 
 go 1.22.0
 
