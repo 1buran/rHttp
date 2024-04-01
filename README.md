@@ -42,7 +42,7 @@ In progress:
 ## Installation
 
 ```sh
-go install github.com/mrBuran/rHttp@latest
+go install github.com/mrBuran/rhttp@latest
 ```
 
 ## Key Bindings
