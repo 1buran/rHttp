@@ -811,9 +811,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.FullScreen):
 			if m.fullScreen {
 				m.fullScreen = false
+				m.setStatus(statusInfo, "full screen mode is off")
 				return m, tea.ExitAltScreen
 			}
 			m.fullScreen = true
+			m.setStatus(statusInfo, "full screen mode is on")
 			return m, tea.EnterAltScreen
 		case key.Matches(msg, m.keys.Run):
 			m.setStatus(statusInfo, "sending request...")
