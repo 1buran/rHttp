@@ -1,13 +1,13 @@
 # rHttp - REPL for HTTP
 [![codecov](https://codecov.io/gh/1buran/rHttp/graph/badge.svg?token=20IW0GY8R9)](https://codecov.io/gh/1buran/rHttp)
 [![goreportcard](https://goreportcard.com/badge/github.com/1buran/rHttp)](https://goreportcard.com/report/github.com/1buran/redmine)
-![Main demo](https://i.imgur.com/IUHwX2z.gif)
+![Main demo](https://i.imgur.com/6ao55dy.gif)
 
 #### Responses with minified JSON
-![JSON min](https://i.imgur.com/kHOvpoG.gif)
+![JSON min](https://i.imgur.com/Ii6CzZK.gif)
 
 #### Load session
-![Load session](https://i.imgur.com/kYAPCKg.gif)
+![Load session](https://i.imgur.com/TQ3uKG3.gif)
 
 ## Introduction
 
