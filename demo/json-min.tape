@@ -11,8 +11,8 @@ Set TypingSpeed 150ms
 Set PlaybackSpeed 0.5
 Set CursorBlink false
 
-Require go
-Type "go run ." Enter
+Require rhttp
+Type "rhttp" Enter
 
 Sleep 3
 Ctrl + h
