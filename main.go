@@ -313,8 +313,8 @@ func (m *model) clearRespArtefacts() {
 }
 
 // Get page of response.
-func (m *model) getRespPageLines() []string {
-	limit := screenHeight - usedScreenLines - 2 // available screen lines for display of res body
+func (m *model) getRespPageLines(usedLines int) []string {
+	limit := screenHeight - usedLines // available screen lines for display of res body
 	end := m.offset + limit
 	if end > len(m.resBodyLines)-1 {
 		return m.resBodyLines[m.offset:]
@@ -792,7 +792,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.pressedKey = msg.String()
 		switch {
 		case key.Matches(msg, m.keys.PageDown):
-			availableScreenLines := screenHeight - usedScreenLines - 2
+			availableScreenLines := screenHeight - usedScreenLines
 			if m.offset+offsetShift+availableScreenLines <= len(m.resBodyLines) {
 				m.offset += offsetShift
 			} else {
@@ -970,7 +970,6 @@ func (m *model) formatStatusBar() string {
 func (m model) View() string {
 	// Layout parts
 	var (
-		usedLines                                     int
 		prompts, reqHeaders, resHeaders, resBodyLines []string
 		reqUrl, resUrl, formValuesEncoded             string
 	)
@@ -1053,12 +1052,11 @@ func (m model) View() string {
 	}
 	rightPanel := lipgloss.JoinVertical(lipgloss.Center, rpContent...)
 
-	menu := lipgloss.JoinHorizontal(
+	menuRendered := lipgloss.JoinHorizontal(
 		lipgloss.Top,
 		leftPanel,
 		rightPanel,
 	)
-	usedLines += len(prompts)
 
 	reqInfo := []string{"", reqUrl}
 	reqInfo = append(reqInfo, reqHeaders...)
@@ -1066,21 +1064,24 @@ func (m model) View() string {
 		reqInfo = append(reqInfo, "", formValuesEncoded)
 	}
 	reqInfoRendered := lipgloss.JoinVertical(lipgloss.Top, reqInfo...)
-	usedLines += len(reqInfo)
 
 	resInfo := []string{"", resUrl}
 	resInfo = append(resInfo, resHeaders...)
 	resInfo = append(resInfo, "")
-	usedLines += len(resInfo)
 
-	usedScreenLines = usedLines + 1
-	resBodyLines = m.getRespPageLines()
-	resInfo = append(resInfo, resBodyLines...)
-	resInfoRendered := lipgloss.JoinVertical(lipgloss.Top, resInfo...)
+	preResInfoRendered := lipgloss.JoinVertical(lipgloss.Top, resInfo...)
+
+	usedScreenLines = lipgloss.Height(menuRendered) +
+		lipgloss.Height(reqInfoRendered) +
+		lipgloss.Height(preResInfoRendered) +
+		1 // +1 line of status bar
+	resBodyLines = m.getRespPageLines(usedScreenLines)
+	resBodyRendered := lipgloss.JoinVertical(lipgloss.Top, resBodyLines...)
+	resInfoRendered := lipgloss.JoinVertical(lipgloss.Top, preResInfoRendered, resBodyRendered)
 
 	// write all lines to output
 	return lipgloss.JoinVertical(
-		lipgloss.Top, menu, reqInfoRendered, resInfoRendered, statusBar,
+		lipgloss.Top, menuRendered, reqInfoRendered, resInfoRendered, statusBar,
 	)
 }
 
