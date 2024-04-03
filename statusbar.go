@@ -184,6 +184,16 @@ func (s *StatusBar) SetResTime(t time.Duration) {
 	s.resTime = t
 }
 
+// Set last response status code.
+func (s *StatusBar) SetResStatusCode(c int) {
+	s.resStatusCode = c
+}
+
+// Set last response proto.
+func (s *StatusBar) SetResProto(p string) {
+	s.resProto = p
+}
+
 // Set count of requests.
 func (s *StatusBar) SetReqCount(c int) {
 	s.reqCount = c

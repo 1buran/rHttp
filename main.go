@@ -779,6 +779,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.resBodyLines = formatRespBody(
 			m.res.Header.Get("content-type"), string(buf),
 			m.checkboxes[checkboxIndex(autoformat)].IsOn())
+		sbar.SetResStatusCode(m.res.StatusCode)
+		sbar.SetResProto(m.res.Proto)
 		sbar.Info("request is executed, response taken")
 		if len(redirects) > 0 {
 			sbar.Warning(
