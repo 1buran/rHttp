@@ -781,7 +781,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.checkboxes[checkboxIndex(autoformat)].IsOn())
 		sbar.Info("request is executed, response taken")
 		if len(redirects) > 0 {
-			sbar.Warning("redirects: " + strings.Join(redirects, " → "))
+			sbar.Warning(
+				strconv.Itoa(len(redirects)) + " redirects: " + strings.Join(redirects, " → "))
 		}
 
 	case tea.WindowSizeMsg:
