@@ -33,6 +33,10 @@ Sleep 3
 Ctrl + g
 PageDown 10
 Sleep 3
+PageDown 10
+Sleep 3
 PageUp  10
 Sleep 3
+PageUp  10
+Sleep 15
 Ctrl + q

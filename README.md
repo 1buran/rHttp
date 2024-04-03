@@ -9,6 +9,9 @@
 #### Load session
 ![Load session](https://i.imgur.com/TQ3uKG3.gif)
 
+#### Redirects
+![Redirects](https://i.imgur.com/Dm9XCJh.gif)
+
 ## Introduction
 
 This is project was created when I needed something like REPL for http request in terminal,
@@ -76,6 +79,7 @@ Run VHS fo update gifs.
 vhs demo/main.tape
 vhs demo/json-min.tape
 vhs demo/load-session.tape
+vhs demo/redirects.tape
 ```
 ### imgur
 
@@ -105,4 +109,12 @@ url=`curl --location https://api.imgur.com/3/image \
      --form title=rHttp \
      --form description=Demo | jq -r '.data.link'`
 sed -i "s#^\!\[Load session\].*#![Load session]($url)#" README.md
+
+url=`curl --location https://api.imgur.com/3/image \
+     --header "Authorization: Client-ID ${clientId}" \
+     --form image=@demo/redirects.gif \
+     --form type=image \
+     --form title=rHttp \
+     --form description=Demo | jq -r '.data.link'`
+sed -i "s#^\!\[Redirects\].*#![Redirects]($url)#" README.md
 ```
