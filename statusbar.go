@@ -1,13 +1,17 @@
 package main
 
 import (
-	"github.com/charmbracelet/lipgloss"
 	"strconv"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"time"
 )
 
 const (
+	textShiftLimit = 5
+
 	statusInfoEmoji    = "🟢"
 	statusWarningEmoji = "🟡"
 	statusErrorEmoji   = "🔴"
@@ -60,16 +64,73 @@ var (
 type StatusBar struct {
 	status        int
 	text          string
+	textOffset    int
+	screenWidth   int
 	reqCount      int
 	resTime       time.Duration
 	resStatusCode int
 	resProto      string
 }
 
-// Get status message.
-func (s *StatusBar) getStatusText() (t string) {
-	var style lipgloss.Style
+type StatusBarTickMsg time.Time
 
+func StatusBarDoTick() tea.Cmd {
+	return tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
+		return StatusBarTickMsg(t)
+	})
+}
+
+func (s StatusBar) Update(msg tea.Msg) (StatusBar, tea.Cmd) {
+	switch msg.(type) {
+	case StatusBarTickMsg:
+		s.applyTimeChanges()
+		return s, StatusBarDoTick()
+	}
+	return s, nil
+}
+
+// Apply time changes.
+func (s *StatusBar) applyTimeChanges() {
+	s.textOffset += textShiftLimit
+}
+
+// Get part of creeping text.
+func (s *StatusBar) getText(w int) string {
+	tw := len(s.text)
+
+	if tw < w {
+		return s.text
+	}
+
+	if s.textOffset < tw && s.text[s.textOffset] > 127 { // unicode detected
+		s.textOffset += 4 // do not break unicode sequence, skip it
+	}
+
+	if s.textOffset >= tw {
+		s.textOffset = 0
+		return s.text[:w]
+	}
+
+	tl := s.textOffset + w
+	if tl >= tw {
+		appendix := w - (tw - s.textOffset)
+		if s.text[appendix] > 127 { // unicode detected
+			appendix-- // do not break unicode sequence, skip it
+		}
+		return s.text[s.textOffset:] + " " + s.text[:appendix]
+	}
+
+	if s.text[tl-1] > 127 { // unicode detected
+		tl-- // do not break unicode sequence, skip it
+	}
+
+	return s.text[s.textOffset:tl]
+}
+
+// Get status message.
+func (s *StatusBar) getStatusText(w int) string {
+	var style lipgloss.Style
+	// apply style
 	switch s.status {
 	case statusInfo:
 		style = statusTextInfo
@@ -78,12 +139,12 @@ func (s *StatusBar) getStatusText() (t string) {
 	case statusError:
 		style = statusTextError
 	}
-
-	return style.Render(s.text)
+	return style.Render(s.getText(w))
 }
 
 // Set status.
 func (s *StatusBar) setStatus(status int, text string) {
+	s.textOffset = 0
 	s.status = status
 	s.text = time.Now().Format("[15:04:05] ") + text
 }
@@ -126,6 +187,11 @@ func (s *StatusBar) SetResTime(t time.Duration) {
 // Set count of requests.
 func (s *StatusBar) SetReqCount(c int) {
 	s.reqCount = c
+}
+
+// Set screen width.
+func (s *StatusBar) SetScreenWidth(w int) {
+	s.screenWidth = w
 }
 
 // Get status badge.
@@ -173,9 +239,8 @@ func (s *StatusBar) FormatStatusBar() string {
 
 	indicator := indicatorStyle.Render(s.getStatusIndicator())
 
-	statusVal := statusText.Copy().
-		Width(screenWidth - w(status) - w(reqCounter) - w(resTime) - w(indicator)).
-		Render(s.getStatusText())
+	maxTextWidth := screenWidth - w(status) - w(reqCounter) - w(resTime) - w(indicator)
+	statusVal := statusText.Copy().Width(maxTextWidth).Render(s.getStatusText(maxTextWidth))
 
 	bar := lipgloss.JoinHorizontal(lipgloss.Top,
 		status,
@@ -188,6 +253,6 @@ func (s *StatusBar) FormatStatusBar() string {
 	return statusBarStyle.Width(screenWidth).Render(bar)
 }
 
-func NewStatusBar() *StatusBar {
-	return &StatusBar{}
+func NewStatusBar() StatusBar {
+	return StatusBar{}
 }

@@ -564,7 +564,7 @@ func initialModel() model {
 }
 
 func (m model) Init() tea.Cmd {
-	return textinput.Blink
+	return tea.Batch(textinput.Blink, StatusBarDoTick())
 }
 
 var formValues = make(url.Values)
@@ -789,6 +789,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			"detected screen size: " + strconv.Itoa(msg.Width) + " x " + strconv.Itoa(msg.Height))
 		screenWidth = msg.Width
 		screenHeight = msg.Height
+		sbar.SetScreenWidth(msg.Width)
 	case tea.KeyMsg:
 		m.pressedKey = msg.String()
 		switch {
@@ -932,6 +933,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, c)
 	}
 
+	// Update status bar
+	sbar, c = sbar.Update(msg)
+	cmds = append(cmds, c)
 	return m, tea.Batch(cmds...)
 }
 
