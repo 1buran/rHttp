@@ -117,6 +117,8 @@ var (
 			Bold(true).BorderStyle(lipgloss.NormalBorder()).
 			BorderForeground(lipgloss.Color("63")).
 			Padding(1).Width(60).AlignHorizontal(lipgloss.Center)
+
+	sbar = NewStatusBar()
 )
 
 func fileinputIndex(i int) (idx int) {
@@ -213,7 +215,6 @@ type model struct {
 	fullScreen   bool
 	offset       int
 	pressedKey   string
-	StatusBar
 	KeyStroke
 }
 
@@ -672,16 +673,16 @@ func (m *model) checkboxHandler(msg tea.Msg, i int) (tea.Model, tea.Cmd) {
 // Load session: create and populate request and response from the given file.
 func loadSession(m model, r io.Reader) (tea.Model, tea.Cmd) {
 	ses, _ := NewSession(
-		m.req, m.res, m.reqCount,
-		m.StatusBar.reqTime.Microseconds(), formValues, m.resBodyLines)
+		m.req, m.res, sbar.GetReqCount(),
+		sbar.GetResTime(), formValues, m.resBodyLines)
 	err := ses.Load(r)
 	if err != nil {
-		m.setStatus(statusError, err.Error())
+		sbar.Error(err.Error())
 		return m, nil
 	}
 	// Update state (request and response and some other stuff)
 	// TODO update suggestions and all this to separate function
-	m.reqCount = ses.ReqCount
+	sbar.SetReqCount(ses.ReqCount)
 	formValues = ses.Request.FormValues
 
 	// Create a new request instance
@@ -732,29 +733,29 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case FileInputReader:
 		if msg.Error != nil {
-			m.setStatus(statusError, msg.Error.Error())
+			sbar.Error(msg.Error.Error())
 			return m, nil
 		}
 		switch msg.Id {
 		case sessionLoad:
-			m.setStatus(statusInfo, "load session from: "+msg.Path)
+			sbar.Info("load session from: " + msg.Path)
 			m.focused = 0
 			m.focusPrompt(0)
 			return loadSession(m, msg.Reader)
 		}
 	case FileInputWriter:
 		if msg.Error != nil {
-			m.setStatus(statusError, msg.Error.Error())
+			sbar.Error(msg.Error.Error())
 			return m, nil
 		}
 		ses, _ := NewSession(
-			m.req, m.res, m.reqCount,
-			m.StatusBar.reqTime.Microseconds(), formValues, m.resBodyLines)
+			m.req, m.res, sbar.GetReqCount(),
+			sbar.GetResTime(), formValues, m.resBodyLines)
 		err := ses.Save(msg.Writer)
 		if err != nil {
-			m.setStatus(statusError, err.Error())
+			sbar.Error(err.Error())
 		}
-		m.setStatus(statusInfo, "saved session to: "+msg.Path)
+		sbar.Info("saved session to: " + msg.Path)
 		m.focused = 0
 		m.focusPrompt(0)
 		return m, nil
@@ -764,7 +765,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.setHttps(msg.On)
 		}
 	case Timer:
-		m.reqTime = msg.elapsedTime()
+		sbar.SetResTime(msg.elapsedTime())
 		cmd := func() tea.Msg {
 			return msg.payload
 		}
@@ -777,15 +778,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.resBodyLines = formatRespBody(
 			m.res.Header.Get("content-type"), string(buf),
 			m.checkboxes[checkboxIndex(autoformat)].IsOn())
-		m.setStatus(statusInfo, "request is executed, response taken")
+		sbar.Info("request is executed, response taken")
 		if len(redirects) > 0 {
-			m.setStatus(statusWarning, "redirects: "+strings.Join(redirects, " → "))
+			sbar.Warning("redirects: " + strings.Join(redirects, " → "))
 		}
 
 	case tea.WindowSizeMsg:
-		m.setStatus(
-			statusInfo,
-			"detected screen size: "+strconv.Itoa(msg.Width)+" x "+strconv.Itoa(msg.Height))
+		sbar.Info(
+			"detected screen size: " + strconv.Itoa(msg.Width) + " x " + strconv.Itoa(msg.Height))
 		screenWidth = msg.Width
 		screenHeight = msg.Height
 	case tea.KeyMsg:
@@ -811,16 +811,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.FullScreen):
 			if m.fullScreen {
 				m.fullScreen = false
-				m.setStatus(statusInfo, "full screen mode is off")
+				sbar.Info("full screen mode is off")
 				return m, tea.ExitAltScreen
 			}
 			m.fullScreen = true
-			m.setStatus(statusInfo, "full screen mode is on")
+			sbar.Info("full screen mode is on")
 			return m, tea.EnterAltScreen
 		case key.Matches(msg, m.keys.Run):
-			m.setStatus(statusInfo, "sending request...")
+			sbar.Info("sending request...")
 			m.clearRespArtefacts()
-			m.incReqCount()
+			sbar.IncReqCount()
 			cmd := func() tea.Msg {
 				r, err := sendRequest(m.req)
 				if err != nil {
@@ -914,7 +914,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case error:
-		m.setStatus(statusError, msg.Error())
+		sbar.Error(msg.Error())
 		m.clearRespArtefacts()
 		return m, tea.ClearScreen
 	}
@@ -932,39 +932,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, tea.Batch(cmds...)
-}
-
-// Format status bar.
-func (m *model) formatStatusBar() string {
-	w := lipgloss.Width
-
-	var resStatusCode int
-	var proto string
-	if m.reqIsExecuted() {
-		resStatusCode = m.res.StatusCode
-		proto = m.res.Proto
-	}
-
-	status := m.getStatusBadge("STATUS")
-	reqCounter := reqCountStyle.Render(strconv.Itoa(m.getReqCount()))
-	reqTime := reqTimeStyle.Render(m.getReqTime())
-
-	indicator := indicatorStyle.Render(
-		getStatusIndicator(resStatusCode, proto))
-
-	statusVal := statusText.Copy().
-		Width(screenWidth - w(status) - w(reqCounter) - w(reqTime) - w(indicator)).
-		Render(m.getStatusText())
-
-	bar := lipgloss.JoinHorizontal(lipgloss.Top,
-		status,
-		statusVal,
-		reqCounter,
-		reqTime,
-		indicator,
-	)
-
-	return statusBarStyle.Width(screenWidth).Render(bar)
 }
 
 func (m model) View() string {
@@ -1026,7 +993,7 @@ func (m model) View() string {
 	}
 
 	// add status bar
-	statusBar := m.formatStatusBar()
+	sbarRendered := sbar.FormatStatusBar()
 
 	leftPanel := lipgloss.JoinVertical(lipgloss.Left, prompts...)
 	lW, _ := lipgloss.Size(leftPanel)
@@ -1081,7 +1048,7 @@ func (m model) View() string {
 
 	// write all lines to output
 	return lipgloss.JoinVertical(
-		lipgloss.Top, menuRendered, reqInfoRendered, resInfoRendered, statusBar,
+		lipgloss.Top, menuRendered, reqInfoRendered, resInfoRendered, sbarRendered,
 	)
 }
 

@@ -28,13 +28,13 @@ type Response struct {
 // Session reflect current state: some stats, request settings and last response (with data).
 type Session struct {
 	ReqCount int      `json:"reqCount"`
-	ReqTime  int64    `json:"reqTime"`
+	ResTime  string   `json:"resTime"`
 	Request  Request  `json:"req"`
 	Response Response `json:"res"`
 }
 
 // Create a new session.
-func NewSession(rq *http.Request, rs *http.Response, rqc int, rqt int64, rqf map[string][]string, rsb []string) (*Session, error) {
+func NewSession(rq *http.Request, rs *http.Response, rqc int, rqt string, rqf map[string][]string, rsb []string) (*Session, error) {
 	req := Request{Headers: make(map[string][]string), FormValues: make(map[string][]string)}
 	res := Response{Headers: make(map[string][]string)}
 
@@ -61,7 +61,7 @@ func NewSession(rq *http.Request, rs *http.Response, rqc int, rqt int64, rqf map
 		}
 		res.BodyLines = rsb
 	}
-	return &Session{ReqCount: rqc, ReqTime: rqt, Request: req, Response: res}, nil
+	return &Session{ReqCount: rqc, ResTime: rqt, Request: req, Response: res}, nil
 }
 
 // Save the session.

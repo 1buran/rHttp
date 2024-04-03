@@ -16,7 +16,7 @@ func TestSession(t *testing.T) {
 	rsb := []string{}
 
 	t.Run("create new session with empty request and response", func(t *testing.T) {
-		_, err := NewSession(rq, rs, 10, 47, rqf, rsb)
+		_, err := NewSession(rq, rs, 10, "10.57µs", rqf, rsb)
 		if err != nil {
 			t.Fatalf("cannot create new session, error: %s", err)
 		}
@@ -47,7 +47,7 @@ func TestSession(t *testing.T) {
 	rsb = []string{"{", `"msg": "hello!",`, `"id": 455`, "}"}
 
 	t.Run("create new session filled request and response", func(t *testing.T) {
-		s, err := NewSession(rq, rs, 10, 47, rqf, rsb)
+		s, err := NewSession(rq, rs, 10, "10.57µs", rqf, rsb)
 		if err != nil {
 			t.Fatalf("cannot create new session, error: %s", err)
 		}
@@ -71,7 +71,7 @@ func TestSession(t *testing.T) {
 
 	var buf strings.Builder
 	t.Run("save", func(t *testing.T) {
-		s, _ := NewSession(rq, rs, 10, 47, rqf, rsb)
+		s, _ := NewSession(rq, rs, 10, "10.57µs", rqf, rsb)
 
 		err := s.Save(&buf)
 		if err != nil {
@@ -91,7 +91,7 @@ func TestSession(t *testing.T) {
 		rqf := map[string][]string{}
 		rsb := []string{"{", `"msg": "hello!",`, `"id": 455`, "}"}
 
-		s, _ := NewSession(rq, rs, 10, 47, rqf, []string{})
+		s, _ := NewSession(rq, rs, 10, "10.57µs", rqf, []string{})
 		r := strings.NewReader(buf.String())
 
 		err := s.Load(r)

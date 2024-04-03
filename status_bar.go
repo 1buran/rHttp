@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/charmbracelet/lipgloss"
+	"strconv"
 
 	"time"
 )
@@ -44,7 +45,7 @@ var (
 			Background(lipgloss.Color("#A550DF")).
 			Align(lipgloss.Right)
 
-	reqTimeStyle = statusNugget.Copy().
+	resTimeStyle = statusNugget.Copy().
 			Background(lipgloss.Color("#C550DF")).
 			Align(lipgloss.Right)
 
@@ -57,15 +58,12 @@ var (
 
 // A status bar state.
 type StatusBar struct {
-	status   int
-	text     string
-	reqCount int
-	reqTime  time.Duration
-}
-
-// Get request time.
-func (s *StatusBar) getReqTime() string {
-	return s.reqTime.String()
+	status        int
+	text          string
+	reqCount      int
+	resTime       time.Duration
+	resStatusCode int
+	resProto      string
 }
 
 // Get status message.
@@ -90,31 +88,44 @@ func (s *StatusBar) setStatus(status int, text string) {
 	s.text = time.Now().Format("[15:04:05] ") + text
 }
 
-// Increment count of request.
-func (s *StatusBar) incReqCount() {
+// Info message.
+func (s *StatusBar) Info(text string) {
+	s.setStatus(statusInfo, text)
+}
+
+// Warning message.
+func (s *StatusBar) Warning(text string) {
+	s.setStatus(statusWarning, text)
+}
+
+// Error message.
+func (s *StatusBar) Error(text string) {
+	s.setStatus(statusError, text)
+}
+
+// Increment count of requests.
+func (s *StatusBar) IncReqCount() {
 	s.reqCount++
 }
 
-// Get count of executed requests.
-func (s *StatusBar) getReqCount() int {
+// Get count of requests.
+func (s *StatusBar) GetReqCount() int {
 	return s.reqCount
 }
 
-// Get status logo indicator.
-func getStatusIndicator(resStatusCode int, proto string) (ind string) {
-	switch {
-	case resStatusCode >= 400:
-		ind = statusErrorEmoji + " " + proto
-	case resStatusCode >= 300:
-		ind = statusWarningEmoji + " " + proto
-	case resStatusCode >= 100:
-		ind = statusInfoEmoji + " " + proto
-	case resStatusCode > 0, resStatusCode < 0:
-		ind = `🤔` + " " + proto
-	default:
-		ind = `💜 rHttp`
-	}
-	return
+// Get last response time.
+func (s *StatusBar) GetResTime() string {
+	return s.resTime.String()
+}
+
+// Set last response time.
+func (s *StatusBar) SetResTime(t time.Duration) {
+	s.resTime = t
+}
+
+// Set count of requests.
+func (s *StatusBar) SetReqCount(c int) {
+	s.reqCount = c
 }
 
 // Get status badge.
@@ -133,4 +144,50 @@ func (s *StatusBar) getStatusBadge(text string) (badge string) {
 	}
 
 	return style.Render(text)
+}
+
+// Get status logo indicator.
+func (s *StatusBar) getStatusIndicator() (ind string) {
+	switch {
+	case s.resStatusCode >= 400:
+		ind = statusErrorEmoji + " " + s.resProto
+	case s.resStatusCode >= 300:
+		ind = statusWarningEmoji + " " + s.resProto
+	case s.resStatusCode >= 100:
+		ind = statusInfoEmoji + " " + s.resProto
+	case s.resStatusCode > 0, s.resStatusCode < 0:
+		ind = `🤔` + " " + s.resProto
+	default:
+		ind = `💜 rHttp`
+	}
+	return
+}
+
+// Format status bar.
+func (s *StatusBar) FormatStatusBar() string {
+	w := lipgloss.Width
+
+	status := s.getStatusBadge("STATUS")
+	reqCounter := reqCountStyle.Render(strconv.Itoa(s.reqCount))
+	resTime := resTimeStyle.Render(s.GetResTime())
+
+	indicator := indicatorStyle.Render(s.getStatusIndicator())
+
+	statusVal := statusText.Copy().
+		Width(screenWidth - w(status) - w(reqCounter) - w(resTime) - w(indicator)).
+		Render(s.getStatusText())
+
+	bar := lipgloss.JoinHorizontal(lipgloss.Top,
+		status,
+		statusVal,
+		reqCounter,
+		resTime,
+		indicator,
+	)
+
+	return statusBarStyle.Width(screenWidth).Render(bar)
+}
+
+func NewStatusBar() *StatusBar {
+	return &StatusBar{}
 }
