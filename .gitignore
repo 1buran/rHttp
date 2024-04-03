@@ -21,3 +21,6 @@
 
 # Go workspace file
 go.work
+
+# Local .env
+.env
