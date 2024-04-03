@@ -702,6 +702,7 @@ func loadSession(m model, r io.Reader) (tea.Model, tea.Cmd) {
 	m.inputs[method].SetValue(ses.Request.Method)
 
 	// req host
+	m.req.Host = ses.Request.Host
 	m.req.URL.Host = ses.Request.Host
 	m.inputs[host].SetValue(ses.Request.Host)
 
