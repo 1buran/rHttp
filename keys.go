@@ -8,7 +8,7 @@ import (
 
 type KeyMap struct {
 	Next, Prev, Quit, Help, Run, FullScreen, PageUp, PageDown, Up, Down, Enter,
-	Delete, Autocomplete, LoadSession, SaveSession, ToggleCheckbox key.Binding
+	Delete, Autocomplete, LoadSession, SaveSession, ToggleCheckbox, ToggleJSON, SaveJSON key.Binding
 }
 
 func (k KeyMap) ShortHelp() []key.Binding {
@@ -18,7 +18,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Next, k.Prev, k.Enter, k.Run, k.Delete, k.ToggleCheckbox},
 		{k.FullScreen, k.Help, k.Quit, k.LoadSession, k.SaveSession, k.Autocomplete},
-		{k.PageDown, k.PageUp},
+		{k.ToggleJSON, k.SaveJSON, k.PageDown, k.PageUp},
 	}
 }
 
@@ -78,6 +78,14 @@ var keys = KeyMap{
 	ToggleCheckbox: key.NewBinding(
 		key.WithKeys(" "),
 		key.WithHelp("Space", "toggle checkbox"),
+	),
+	ToggleJSON: key.NewBinding(
+		key.WithKeys("ctrl+j"),
+		key.WithHelp("ctrl+j", "toggle JSON payload"),
+	),
+	SaveJSON: key.NewBinding(
+		key.WithKeys("alt+enter"),
+		key.WithHelp("alt+enter", "save JSON payload"),
 	),
 }
 

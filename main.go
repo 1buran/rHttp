@@ -20,6 +20,7 @@ import (
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -66,6 +67,21 @@ const (
 const (
 	sessionSave = end + iota + 1
 	sessionLoad
+
+	fileInputsEnd
+)
+
+// Right panel content.
+const (
+	helpView = fileInputsEnd + iota + 1
+	jsonEditView
+)
+
+// Request payload types.
+const (
+	nothing = iota
+	jsonPayload
+	formPayload
 )
 
 const (
@@ -143,10 +159,16 @@ func newReqest() (r *http.Request) {
 }
 
 // Prepare request before send.
-func prepareRequest(r *http.Request) {
-	if len(formValues) > 0 {
+func prepareRequest(r *http.Request, p int) {
+	switch p {
+	case formPayload:
+		sbar.Info("send form values")
 		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		r.Body = newReadCloser(formValues.Encode())
+	case jsonPayload:
+		sbar.Info("send JSON payload")
+		r.Header.Set("Content-Type", "application/json")
+		r.Body = newReadCloser(jsonPayloadEncoded)
 	}
 }
 
@@ -157,10 +179,10 @@ func handleRedirect(req *http.Request, via []*http.Request) error {
 	return nil
 }
 
-func sendRequest(r *http.Request) (*http.Response, error) {
+func sendRequest(r *http.Request, p int) (*http.Response, error) {
 	redirects = nil
 	http_cli := http.Client{Timeout: 2 * time.Second, CheckRedirect: handleRedirect}
-	prepareRequest(r)
+	prepareRequest(r, p)
 	return http_cli.Do(r)
 }
 
@@ -207,13 +229,15 @@ type model struct {
 	inputs       []textinput.Model
 	checkboxes   []Checkbox
 	fileInputs   []FileInput
+	textArea     textarea.Model
 	cursorIdx    int    // edit type
 	cursorKey    string // edit key of type orderedKeyVal store
 	focused      int
-	hideMenu     bool
 	resBodyLines []string
 	fullScreen   bool
 	offset       int
+	rpView       int // right panel view: help or textarea
+	reqPayload   int
 	pressedKey   string
 	KeyStroke
 }
@@ -413,6 +437,10 @@ func (m *model) delReqForm() {
 	name := m.inputs[form].Value()
 	if name != "" {
 		formValues.Del(name)
+		if len(formValues) == 0 {
+			m.reqPayload = nothing
+			m.req.Header.Del("Content-Type")
+		}
 	}
 }
 
@@ -433,6 +461,9 @@ func (m *model) setReqForm() {
 		m.inputs[form].SetSuggestions(s1)
 		m.inputs[formVal].SetSuggestions(s2)
 		m.req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		m.inputs[method].SetValue("POST")
+		m.req.Method = "POST"
+		m.reqPayload = formPayload
 		m.inputs[form].Reset()
 		m.inputs[formVal].Reset()
 	}
@@ -474,6 +505,29 @@ func (m *model) setHttps(b bool) {
 		m.req.URL.Scheme = "https"
 	} else {
 		m.req.URL.Scheme = "http"
+	}
+}
+
+var jsonPayloadEncoded string
+
+func (m *model) setReqJsonPayload() {
+	payload := m.textArea.Value()
+	if json.Valid([]byte(payload)) {
+		m.req.Header.Set("Content-Type", "application/json")
+		m.req.Method = "POST"
+		m.inputs[method].SetValue("POST")
+		m.reqPayload = jsonPayload
+
+		var out bytes.Buffer
+		err := json.Compact(&out, []byte(m.textArea.Value()))
+		if err != nil {
+			sbar.Error(err.Error())
+		} else {
+			sbar.Info("JSON payload is updated")
+		}
+		jsonPayloadEncoded = out.String()
+	} else {
+		sbar.Error("invalid JSON")
 	}
 }
 
@@ -553,11 +607,22 @@ func initialModel() model {
 	f2 := NewFileInput(sessionLoad, ReadMode, "Session load: ", "/home/user/ses.json")
 	fileInputs = append(fileInputs, f1, f2)
 
+	txt := textarea.New()
+	txt.MaxHeight = 0
+	txt.Placeholder = `{ "key": "value", ...}`
+	txt.Prompt = ""
+	txt.FocusedStyle = textarea.Style{
+		Text:        textValueStyle,
+		CursorLine:  lipgloss.NewStyle().Foreground(lightPink),
+		Placeholder: placeholderActiveStyle,
+	}
+
 	m := model{
 		req:        newReqest(),
 		inputs:     inputs,
 		checkboxes: checkboxes,
 		fileInputs: fileInputs,
+		textArea:   txt,
 		KeyStroke:  NewKeyStroke(),
 	}
 	return m
@@ -827,7 +892,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.clearRespArtefacts()
 			sbar.IncReqCount()
 			cmd := func() tea.Msg {
-				r, err := sendRequest(m.req)
+				r, err := sendRequest(m.req, m.reqPayload)
 				if err != nil {
 					return NewMessageWithTimer(err)
 				}
@@ -882,6 +947,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.delReqCookie()
 			case form, formVal:
 				m.delReqForm()
+			case jsonEditView:
+				sbar.Warning("remove JSON payload and Content-Type header")
+				m.textArea.Reset()
+				m.reqPayload = nothing
+				m.req.Header.Del("Content-Type")
 			}
 		case key.Matches(msg, m.keys.ToggleCheckbox):
 			switch m.focused {
@@ -890,6 +960,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case autoformat:
 				return m.checkboxHandler(msg, autoformat)
 			}
+		case key.Matches(msg, m.keys.ToggleJSON):
+			switch m.focused {
+			case jsonEditView:
+				m.rpView = helpView
+				m.focused = 0
+				m.focusPrompt(0)
+				m.textArea.Blur()
+			default:
+				m.rpView = jsonEditView
+				m.focused = jsonEditView
+				m.blurAllPrompts()
+				m.textArea.SetHeight(rH)
+				m.textArea.SetWidth(rW)
+				m.textArea.Focus()
+			}
+		case key.Matches(msg, m.keys.SaveJSON):
+			m.setReqJsonPayload()
 		case key.Matches(msg, m.keys.Enter):
 			switch m.focused {
 			case header, headerVal:
@@ -912,6 +999,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case sessionLoad:
 				idx := fileinputIndex(sessionLoad)
 				return m, m.fileInputs[idx].OpenFile()
+			case jsonEditView:
+				var c tea.Cmd
+				m.textArea, c = m.textArea.Update(msg)
+				return m, c
 			}
 
 			// after handling enter is done, go to next input..
@@ -939,14 +1030,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Update status bar
 	sbar, c = sbar.Update(msg)
 	cmds = append(cmds, c)
+
+	// Update text area
+	m.textArea, c = m.textArea.Update(msg)
+	cmds = append(cmds, c)
+
 	return m, tea.Batch(cmds...)
 }
+
+var rW, rH int
 
 func (m model) View() string {
 	// Layout parts
 	var (
 		prompts, reqHeaders, resHeaders, resBodyLines []string
-		reqUrl, resUrl, formValuesEncoded             string
+		reqUrl, resUrl, reqPayload                    string
 	)
 
 	prompts = append(
@@ -978,9 +1076,12 @@ func (m model) View() string {
 	// Request headers
 	reqHeaders = headersPrintf(m.req.Header)
 
-	// Request encoded form values
-	if len(formValues) > 0 {
-		formValuesEncoded = " " + bodyStyle.Render(formValues.Encode())
+	// Request payload
+	switch m.reqPayload {
+	case formPayload:
+		reqPayload = " " + bodyStyle.Render(formValues.Encode())
+	case jsonPayload:
+		reqPayload = " " + bodyStyle.Render(jsonPayloadEncoded)
 	}
 
 	// print response
@@ -1004,8 +1105,9 @@ func (m model) View() string {
 	sbarRendered := sbar.FormatStatusBar()
 
 	leftPanel := lipgloss.JoinVertical(lipgloss.Left, prompts...)
+	rH = lipgloss.Height(leftPanel) - 1 // -1 line of pressed key indicator
 	lW, _ := lipgloss.Size(leftPanel)
-	rW := screenWidth - lW
+	rW = screenWidth - lW
 	if rW < 0 {
 		rW = 0
 	}
@@ -1013,8 +1115,15 @@ func (m model) View() string {
 	if m.pressedKey == " " {
 		m.pressedKey = "space"
 	}
+	var rv string
+	switch m.rpView {
+	case helpView:
+		rv = lipgloss.NewStyle().Width(rW).Render(m.help.View(m.keys))
+	case jsonEditView:
+		rv = lipgloss.NewStyle().Width(rW).Height(rH).Render(m.textArea.View())
+	}
 	rpContent := []string{
-		lipgloss.NewStyle().Width(rW).Render(m.help.View(m.keys)),
+		rv,
 		lipgloss.NewStyle().Width(rW).Render(
 			pressedKeyStyle[0].Render("Pressed key: ") +
 				pressedKeyStyle[1].Render(m.pressedKey)),
@@ -1035,8 +1144,9 @@ func (m model) View() string {
 
 	reqInfo := []string{"", reqUrl}
 	reqInfo = append(reqInfo, reqHeaders...)
-	if formValuesEncoded != "" {
-		reqInfo = append(reqInfo, "", formValuesEncoded)
+
+	if reqPayload != "" {
+		reqInfo = append(reqInfo, "", reqPayload)
 	}
 	reqInfoRendered := lipgloss.JoinVertical(lipgloss.Top, reqInfo...)
 

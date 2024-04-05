@@ -6,6 +6,9 @@
 #### Responses with minified JSON
 ![JSON min](https://i.imgur.com/Ii6CzZK.gif)
 
+#### Edit JSON request payload
+![Edit JSON Payload](https://i.imgur.com/VAdcP65.gif)
+
 #### Load session
 ![Load session](https://i.imgur.com/TQ3uKG3.gif)
 
@@ -30,12 +33,12 @@ Currently implemented:
 - https, http/2 support
 - Auto following the redirects
 - Easy manipulation of request cookies, headers, params (query string) and form values
+- Easy manipulation of JSON request payload (through the built-in mini editor)
 - Automatic syntax highlighting of the body of http responses
 - Auto format JSON responses (useful for inspection of minified responses)
 - Save & load sessions (useful for complex request setup)
 
 In progress:
-- Easy manipulation of JSON request payload (crud of simple data structure)
 - Load JSON request payload from file
 - Config file for change key bindings, default settings
 
@@ -117,4 +120,12 @@ url=`curl --location https://api.imgur.com/3/image \
      --form title=rHttp \
      --form description=Demo | jq -r '.data.link'`
 sed -i "s#^\!\[Redirects\].*#![Redirects]($url)#" README.md
+
+url=`curl --location https://api.imgur.com/3/image \
+     --header "Authorization: Client-ID ${clientId}" \
+     --form image=@demo/edit-json-payload.gif \
+     --form type=image \
+     --form title=rHttp \
+     --form description=Demo | jq -r '.data.link'`
+sed -i "s#^\!\[Edit JSON Payload\].*#![[Edit JSON Payload]($url)#" README.md
 ```
