@@ -623,6 +623,7 @@ func initialModel() model {
 		checkboxes: checkboxes,
 		fileInputs: fileInputs,
 		textArea:   txt,
+		rpView:     helpView,
 		KeyStroke:  NewKeyStroke(),
 	}
 	return m
