@@ -630,7 +630,7 @@ func initialModel() model {
 }
 
 func (m model) Init() tea.Cmd {
-	return tea.Batch(textinput.Blink, StatusBarDoTick())
+	return tea.Batch(textinput.Blink, StatusBarDoTick(), FileInputDoTick())
 }
 
 var formValues = make(url.Values)

@@ -1,11 +1,16 @@
 package main
 
 import (
+	"errors"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"io"
-	"os"
 )
 
 const (
@@ -18,6 +23,7 @@ type FileInput struct {
 	mode    int
 	widget  textinput.Model
 	visible bool
+	hint    []string // suggestions
 }
 
 type OpenFileReadMsg struct{ Id int }
@@ -62,8 +68,46 @@ func (f *FileInput) Blur() {
 	f.widget.Blur()
 }
 
+var fpathPrev string
+
+func (f *FileInput) updateSuggestions() ([]string, error) {
+	fpath := f.widget.Value()
+	if fpath == fpathPrev {
+		return nil, errors.New("path is not changed")
+	}
+	fpathPrev = fpath
+	inputDirName, inputFileName := filepath.Split(fpath)
+	dirEntries, err := os.ReadDir(inputDirName)
+	if err != nil {
+		return nil, err
+	}
+	suggestions := []string{}
+	for _, i := range dirEntries {
+		s := i.Name()
+		if i.IsDir() {
+			s += "/"
+		}
+
+		if strings.Contains(s, inputFileName) {
+			suggestions = append(suggestions, s)
+		}
+
+		if len(suggestions) == 10 {
+			break
+		}
+	}
+	return suggestions, nil
+}
+
+var suggestionStyle lipgloss.Style = lipgloss.NewStyle().
+	Height(5).Width(35).Foreground(lipgloss.Color("247"))
+
+func (f *FileInput) getSuggestions() string {
+	return suggestionStyle.Render(f.hint...)
+}
+
 func (f FileInput) View() string {
-	return f.widget.View()
+	return lipgloss.JoinVertical(lipgloss.Top, f.widget.View(), f.getSuggestions())
 }
 
 func NewFileInput(id, mode int, title, placeholder string) FileInput {
@@ -91,9 +135,25 @@ type FileInputWriter struct {
 	Path   string
 }
 
+type FileInputTickMsg time.Time
+
+func FileInputDoTick() tea.Cmd {
+	return tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
+		return FileInputTickMsg(t)
+	})
+}
+
 func (f FileInput) Update(msg tea.Msg) (FileInput, tea.Cmd) {
 	var c1, c2 tea.Cmd
 	switch msg := msg.(type) {
+	case FileInputTickMsg:
+		if f.visible {
+			s, err := f.updateSuggestions()
+			if err == nil {
+				f.hint = s
+			}
+			return f, FileInputDoTick()
+		}
 	case OpenFileReadMsg:
 		if msg.Id != f.id {
 			return f, nil
