@@ -68,7 +68,7 @@ go install github.com/1buran/rhttp@latest
 | `Ctl+h`           | toggle full help                           |
 | `Ctrl+l`          | load session                               |
 | `Ctrl+s`          | save session                               |
-| `Ctrl+q`/`Ctrl+c` | quit                                       |
+| `Ctrl+q / Ctrl+c` | quit                                       |
 | `Ctrl+j`          | toggle editor (edit JSON request payload)  |
 | `Alt+Enter`       | save JSON request payload                  |
 
@@ -83,17 +83,17 @@ here they are:
 
 | Keys                                           | Action                                    |
 |:-----------------------------------------------|:------------------------------------------|
-| `right`/`ctrl+f`, `left`/`ctrl+b`              | forward, backward                         |
-| `alt+right`/`alt+f`, `alt+left`/`alt+b`        | word forward, word backward               |
-| `down`/`ctrl+n`, `up`/`ctrl+p`                 | line next, line previous                  |
-| `alt+backspace`/`ctrl+w`, `alt+delete`/`alt+d` | delete word backward, delete word forward |
+| `right / ctrl+f`, `left / ctrl+b`              | forward, backward                         |
+| `alt+right / alt+f`, `alt+left / alt+b`        | word forward, word backward               |
+| `down / ctrl+n`, `up / ctrl+p`                 | line next, line previous                  |
+| `alt+backspace / ctrl+w`, `alt+delete / alt+d` | delete word backward, delete word forward |
 | `ctrl+k`, `ctrl+u`                             | delete after cursor, delete before cursor |
-| `enter`/`ctrl+m`                               | insert new line                           |
+| `enter / ctrl+m`                               | insert new line                           |
 | `backspace`                                    | delete character backward                 |
 | `delete`                                       | delete character forward                  |
-| `home`/`ctrl+a`, `end`/`ctrl+e`                | line start, line end                      |
+| `home / ctrl+a`, `end / ctrl+e`                | line start, line end                      |
 | `ctrl+v` (depends on your terminal settings)   | paste                                     |
-| `alt+<`/`ctrl+home`, `alt+>`/`ctrl+end`        | input begin, input end                    |
+| `alt+< / ctrl+home`, `alt+> / ctrl+end`        | input begin, input end                    |
 | `alt+c`, `alt+l`, `alt+u`                      | capitalize, lowercase and uppercase word  |
 | `ctrl+t`                                       | transpose character backward              |
 
