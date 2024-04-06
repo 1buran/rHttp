@@ -40,6 +40,7 @@ Currently implemented:
 
 In progress:
 - Load JSON request payload from file
+- Load binary data of upload form from file
 - Config file for change key bindings, default settings
 
 > [!CAUTION]
