@@ -53,22 +53,60 @@ go install github.com/1buran/rhttp@latest
 
 ## Key Bindings
 
-| Keys                 | Action                                     |
-|:---------------------|:-------------------------------------------|
-| `Shift+Right`        | next item of menu                          |
-| `Shift+Left`         | prev item of menu                          |
-| `Enter`              | set value of text intput                   |
-| `Ctrl+g`             | run request                                |
-| `Ctrl+d`             | delete item  (param, header or form value) |
-| `Space`              | toggle checkbox                            |
-| `PageDown`           | scroll down body of response               |
-| `PageUp`             | scroll up body of response                 |
-| `Tab`                | autocomplete                               |
-| `Ctrl+f`             | toggle fullscreen mode                     |
-| `Ctl+h`              | toggle full help                           |
-| `Ctrl+l`             | load session                               |
-| `Ctrl+s`             | save session                               |
-| `Ctrl+q` or `Ctrl+c` | quit                                       |
+| Keys              | Action                                     |
+|:------------------|:-------------------------------------------|
+| `Shift+Right`     | next item of menu                          |
+| `Shift+Left`      | prev item of menu                          |
+| `Enter`           | set value of text intput                   |
+| `Ctrl+g`          | run request                                |
+| `Ctrl+d`          | delete item  (param, header or form value) |
+| `Space`           | toggle checkbox                            |
+| `PageDown`        | scroll down body of response               |
+| `PageUp`          | scroll up body of response                 |
+| `Tab`             | autocomplete                               |
+| `Ctrl+f`          | toggle fullscreen mode                     |
+| `Ctl+h`           | toggle full help                           |
+| `Ctrl+l`          | load session                               |
+| `Ctrl+s`          | save session                               |
+| `Ctrl+q`/`Ctrl+c` | quit                                       |
+| `Ctrl+j`          | toggle editor (edit JSON request payload)  |
+| `Alt+Enter`       | save JSON request payload                  |
+
+> [!WARNING]
+> Some of rHttp key bindigs may overriden by system settings or terminal emulator
+> settings, please check them if you face with not working key binding.
+
+## Mini editor
+
+Editor key bindings are from the plugin, they are most tipical shortcuts for common editors,
+here they are:
+
+| Keys                                           | Action                                    |
+|:-----------------------------------------------|:------------------------------------------|
+| `right`/`ctrl+f`, `left`/`ctrl+b`              | forward, backward                         |
+| `alt+right`/`alt+f`, `alt+left`/`alt+b`        | word forward, word backward               |
+| `down`/`ctrl+n`, `up`/`ctrl+p`                 | line next, line previous                  |
+| `alt+backspace`/`ctrl+w`, `alt+delete`/`alt+d` | delete word backward, delete word forward |
+| `ctrl+k`, `ctrl+u`                             | delete after cursor, delete before cursor |
+| `enter`/`ctrl+m`                               | insert new line                           |
+| `backspace`                                    | delete character backward                 |
+| `delete`                                       | delete character forward                  |
+| `home`/`ctrl+a`, `end`/`ctrl+e`                | line start, line end                      |
+| `ctrl+v` (depends on your terminal settings)   | paste                                     |
+| `alt+<`/`ctrl+home`, `alt+>`/`ctrl+end`        | input begin, input end                    |
+| `alt+c`, `alt+l`, `alt+u`                      | capitalize, lowercase and uppercase word  |
+| `ctrl+t`                                       | transpose character backward              |
+
+> [!IMPORTANT]
+> Some of original texarea key bindigs are overriden by the rHttp key bindings, e.g. `ctrl+h` will
+> open the help instead of delete character backward or `ctrl+d` will remove JSON request payload
+> at all instead of delete character forward.
+
+> [!WARNING]
+> Some of original texarea key bindigs may overriden by system settings or terminal emulator
+> settings, please check them if you face with not working key binding.
+
+[texarea key bindings](https://pkg.go.dev/github.com/charmbracelet/bubbles/textarea#pkg-variables)
 
 ## Tasks
 
@@ -83,6 +121,7 @@ vhs demo/main.tape
 vhs demo/json-min.tape
 vhs demo/load-session.tape
 vhs demo/redirects.tape
+vhs demo/edit-json-payload.tape
 ```
 ### imgur
 
