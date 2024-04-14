@@ -129,43 +129,20 @@ vhs demo/edit-json-payload.tape
 Upload to Imgur and update readme.
 
 ```
-url=`curl --location https://api.imgur.com/3/image \
-     --header "Authorization: Client-ID ${clientId}" \
-     --form image=@demo/main.gif \
-     --form type=image \
-     --form title=rHttp \
-     --form description=Demo | jq -r '.data.link'`
-sed -i "s#^\!\[Main demo\].*#![Main demo]($url)#" README.md
+declare -A demo=()
+demo["main"]="Main demo"
+demo["json-min"]="JSON min"
+demo["load-session"]="Load session"
+demo["redirects"]="Redirects"
+demo["edit-json-payload"]="Edit JSON Payload"
 
-url=`curl --location https://api.imgur.com/3/image \
-     --header "Authorization: Client-ID ${clientId}" \
-     --form image=@demo/json-min.gif \
-     --form type=image \
-     --form title=rHttp \
-     --form description=Demo | jq -r '.data.link'`
-sed -i "s#^\!\[JSON min\].*#![JSON min]($url)#" README.md
-
-url=`curl --location https://api.imgur.com/3/image \
-     --header "Authorization: Client-ID ${clientId}" \
-     --form image=@demo/load-session.gif \
-     --form type=image \
-     --form title=rHttp \
-     --form description=Demo | jq -r '.data.link'`
-sed -i "s#^\!\[Load session\].*#![Load session]($url)#" README.md
-
-url=`curl --location https://api.imgur.com/3/image \
-     --header "Authorization: Client-ID ${clientId}" \
-     --form image=@demo/redirects.gif \
-     --form type=image \
-     --form title=rHttp \
-     --form description=Demo | jq -r '.data.link'`
-sed -i "s#^\!\[Redirects\].*#![Redirects]($url)#" README.md
-
-url=`curl --location https://api.imgur.com/3/image \
-     --header "Authorization: Client-ID ${clientId}" \
-     --form image=@demo/edit-json-payload.gif \
-     --form type=image \
-     --form title=rHttp \
-     --form description=Demo | jq -r '.data.link'`
-sed -i "s#^\!\[Edit JSON Payload\].*#![[Edit JSON Payload]($url)#" README.md
+for i in ${!demo[@]}; do
+    . .env && url=`curl --location https://api.imgur.com/3/image \
+        --header "Authorization: Client-ID ${clientId}" \
+        --form image=@demo/$i.gif \
+        --form type=image \
+        --form title=rHttp \
+        --form description=Demo | jq -r '.data.link'`
+    sed -i "s#^\!\[${demo[$i]}\].*#![${demo[$i]}]($url)#" README.md
+done
 ```
