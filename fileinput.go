@@ -58,6 +58,14 @@ func (f *FileInput) Focus() {
 	f.widget.Focus()
 }
 
+func (f *FileInput) Value() string {
+	return f.widget.Value()
+}
+
+func (f *FileInput) Reset() {
+	f.widget.Reset()
+}
+
 func (f *FileInput) Blur() {
 	f.widget.Blur()
 }
@@ -79,14 +87,14 @@ func NewFileInput(id, mode int, title, placeholder string) FileInput {
 
 type FileInputReader struct {
 	Id     int
-	Reader io.Reader
+	Reader io.ReadCloser
 	Error  error
 	Path   string
 }
 
 type FileInputWriter struct {
 	Id     int
-	Writer io.Writer
+	Writer io.WriteCloser
 	Error  error
 	Path   string
 }

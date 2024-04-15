@@ -1,19 +1,22 @@
 # rHttp - REPL for HTTP
 [![codecov](https://codecov.io/gh/1buran/rHttp/graph/badge.svg?token=20IW0GY8R9)](https://codecov.io/gh/1buran/rHttp)
 [![goreportcard](https://goreportcard.com/badge/github.com/1buran/rHttp)](https://goreportcard.com/report/github.com/1buran/redmine)
-![Main demo](https://i.imgur.com/6ao55dy.gif)
+![Main demo](https://i.imgur.com/I0vIcFS.gif)
 
 #### Responses with minified JSON
-![JSON min](https://i.imgur.com/Ii6CzZK.gif)
+![JSON min](https://i.imgur.com/FFrxom5.gif)
 
 #### Edit JSON request payload
-![Edit JSON Payload](https://i.imgur.com/VAdcP65.gif)
+![Edit JSON Payload](https://i.imgur.com/08bJisW.gif)
+
+#### Load JSON request payload from file
+![Attach file](https://i.imgur.com/CtpGGvZ.gif)
 
 #### Load session
-![Load session](https://i.imgur.com/TQ3uKG3.gif)
+![Load session](https://i.imgur.com/iPGhPGI.gif)
 
 #### Redirects
-![Redirects](https://i.imgur.com/Dm9XCJh.gif)
+![Redirects](https://i.imgur.com/rRA4vVy.gif)
 
 ## Introduction
 
@@ -34,12 +37,12 @@ Currently implemented:
 - Auto following the redirects
 - Easy manipulation of request cookies, headers, params (query string) and form values
 - Easy manipulation of JSON request payload (through the built-in mini editor)
+- Load JSON request payload from file
 - Automatic syntax highlighting of the body of http responses
 - Auto format JSON responses (useful for inspection of minified responses)
 - Save & load sessions (useful for complex request setup)
 
 In progress:
-- Load JSON request payload from file
 - Load binary data of upload form from file
 - Config file for change key bindings, default settings
 
@@ -123,6 +126,7 @@ vhs demo/json-min.tape
 vhs demo/load-session.tape
 vhs demo/redirects.tape
 vhs demo/edit-json-payload.tape
+vhs demo/attach-file.tape
 ```
 ### imgur
 
@@ -135,6 +139,7 @@ demo["json-min"]="JSON min"
 demo["load-session"]="Load session"
 demo["redirects"]="Redirects"
 demo["edit-json-payload"]="Edit JSON Payload"
+demo["attach-file"]="Attach file"
 
 for i in ${!demo[@]}; do
     . .env && url=`curl --location https://api.imgur.com/3/image \

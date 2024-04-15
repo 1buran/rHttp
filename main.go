@@ -67,6 +67,7 @@ const (
 const (
 	sessionSave = end + iota + 1
 	sessionLoad
+	payload
 
 	fileInputsEnd
 )
@@ -82,6 +83,7 @@ const (
 	nothing = iota
 	jsonPayload
 	formPayload
+	file
 )
 
 const (
@@ -159,16 +161,18 @@ func newReqest() (r *http.Request) {
 }
 
 // Prepare request before send.
+// TODO consider refactoring/remove all this function to avoid using of global variables
 func prepareRequest(r *http.Request, p int) {
 	switch p {
+	// case file: ? (see todo)
 	case formPayload:
 		sbar.Info("send form values")
 		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		r.Body = newReadCloser(formValues.Encode())
+		r.Body = io.NopCloser(strings.NewReader(formValues.Encode()))
 	case jsonPayload:
 		sbar.Info("send JSON payload")
 		r.Header.Set("Content-Type", "application/json")
-		r.Body = newReadCloser(jsonPayloadEncoded)
+		r.Body = io.NopCloser(strings.NewReader(jsonPayloadEncoded))
 	}
 }
 
@@ -605,7 +609,9 @@ func initialModel() model {
 
 	f1 := NewFileInput(sessionSave, WriteMode, "Session save: ", "/home/user/ses.json")
 	f2 := NewFileInput(sessionLoad, ReadMode, "Session load: ", "/home/user/ses.json")
-	fileInputs = append(fileInputs, f1, f2)
+	f3 := NewFileInput(payload, ReadMode, "Payload: ", "/home/user/data.json")
+
+	fileInputs = append(fileInputs, f1, f2, f3)
 
 	txt := textarea.New()
 	txt.MaxHeight = 0
@@ -634,13 +640,6 @@ func (m model) Init() tea.Cmd {
 }
 
 var formValues = make(url.Values)
-
-type readCloser struct {
-	strings.Reader
-}
-
-func (rc *readCloser) Close() error      { return nil }
-func newReadCloser(s string) *readCloser { return &readCloser{*strings.NewReader(s)} }
 
 func eraseIfError(t textinput.Model) {
 	if t.Err != nil {
@@ -737,7 +736,7 @@ func (m *model) checkboxHandler(msg tea.Msg, i int) (tea.Model, tea.Cmd) {
 }
 
 // Load session: create and populate request and response from the given file.
-func loadSession(m model, r io.Reader) (tea.Model, tea.Cmd) {
+func loadSession(m model, r io.ReadCloser) (tea.Model, tea.Cmd) {
 	ses, _ := NewSession(
 		m.req, m.res, sbar.GetReqCount(),
 		sbar.GetResTime(), formValues, m.resBodyLines)
@@ -788,7 +787,25 @@ func loadSession(m model, r io.Reader) (tea.Model, tea.Cmd) {
 	m.res.Proto = ses.Response.Proto
 	m.res.Header = ses.Response.Headers
 	m.resBodyLines = ses.Response.BodyLines
+	m.reqPayload = nothing
 
+	return m, nil
+}
+
+var filePayload string
+
+// Load payload.
+func loadPayload(m model, r io.ReadCloser, path string) (tea.Model, tea.Cmd) {
+	if strings.HasSuffix(path, ".json") {
+		m.req.Header.Set("Content-Type", "application/json")
+	}
+	m.req.Method = "POST"
+	m.inputs[method].SetValue("POST")
+	m.reqPayload = file
+
+	filePayload = path
+
+	m.req.Body = r
 	return m, nil
 }
 
@@ -809,6 +826,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.focused = 0
 			m.focusPrompt(0)
 			return loadSession(m, msg.Reader)
+		case payload:
+			sbar.Info("add payload, read data from: " + msg.Path)
+			m.focused = 0
+			m.focusPrompt(0)
+			return loadPayload(m, msg.Reader, msg.Path)
 		}
 	case FileInputWriter:
 		if msg.Error != nil {
@@ -938,6 +960,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.focusPrompt(0)
 			}
 			// return m, nil
+		case key.Matches(msg, m.keys.Payload):
+			idx := fileinputIndex(payload)
+			if !m.fileInputs[idx].visible {
+				m.blurAllPrompts()
+				m.fileInputs[idx].SetVisible()
+				m.fileInputs[idx].Focus()
+				m.focused = payload
+			} else {
+				m.blurAllPrompts()
+				m.fileInputs[idx].Hide()
+				m.focused = 0
+				m.focusPrompt(0)
+			}
 		case key.Matches(msg, m.keys.Delete):
 			switch m.focused {
 			case header, headerVal:
@@ -952,6 +987,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				sbar.Warning("remove JSON payload and Content-Type header")
 				m.textArea.Reset()
 				m.reqPayload = nothing
+				m.req.Header.Del("Content-Type")
+			case payload:
+				sbar.Warning("remove req payload")
+				filePayload = ""
+				idx := fileinputIndex(payload)
+				m.fileInputs[idx].Reset()
+				m.reqPayload = nothing
+				m.req.Body = nil
 				m.req.Header.Del("Content-Type")
 			}
 		case key.Matches(msg, m.keys.ToggleCheckbox):
@@ -999,6 +1042,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.fileInputs[idx].OpenFile()
 			case sessionLoad:
 				idx := fileinputIndex(sessionLoad)
+				return m, m.fileInputs[idx].OpenFile()
+			case payload:
+				idx := fileinputIndex(payload)
 				return m, m.fileInputs[idx].OpenFile()
 			case jsonEditView:
 				var c tea.Cmd
@@ -1083,6 +1129,8 @@ func (m model) View() string {
 		reqPayload = " " + bodyStyle.Render(formValues.Encode())
 	case jsonPayload:
 		reqPayload = " " + bodyStyle.Render(jsonPayloadEncoded)
+	case file:
+		reqPayload = " " + bodyStyle.Render(filePayload, " attached")
 	}
 
 	// print response

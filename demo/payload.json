@@ -1,0 +1,17 @@
+{
+  "Purchase": [
+    {
+      "Product": {
+        "id": 1,
+        "name": "Bubble Gum",
+        "cost": 7.52
+      },
+      "Seller": {
+        "id": 101,
+        "name": "Kurt",
+        "rating": 4.8,
+        "soldItems": 2145
+      }
+    }
+  ]
+}

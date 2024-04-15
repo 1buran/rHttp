@@ -65,7 +65,7 @@ func NewSession(rq *http.Request, rs *http.Response, rqc int, rqt string, rqf ma
 }
 
 // Save the session.
-func (s *Session) Save(o io.Writer) error {
+func (s *Session) Save(o io.WriteCloser) error {
 	b, err := json.Marshal(s)
 	if err != nil {
 		return err
@@ -76,13 +76,23 @@ func (s *Session) Save(o io.Writer) error {
 		return err
 	}
 
+	err = o.Close()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // Load the session.
-func (s *Session) Load(r io.Reader) error {
+func (s *Session) Load(r io.ReadCloser) error {
 
 	b, err := io.ReadAll(r)
+	if err != nil {
+		return err
+	}
+
+	err = r.Close()
 	if err != nil {
 		return err
 	}
