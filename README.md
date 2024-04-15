@@ -75,7 +75,7 @@ go install github.com/1buran/rhttp@latest
 | `Ctrl+q / Ctrl+c` | quit                                                    |
 | `Ctrl+j`          | toggle editor (edit JSON request payload)               |
 | `Alt+Enter`       | save JSON request payload                               |
-| `Ctrl+p`          | add jSON payload                                        |
+| `Ctrl+p`          | load jSON request payload from file                     |
 
 > [!WARNING]
 > Some of rHttp key bindigs may overriden by system settings or terminal emulator
