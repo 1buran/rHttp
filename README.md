@@ -57,24 +57,25 @@ go install github.com/1buran/rhttp@latest
 
 ## Key Bindings
 
-| Keys              | Action                                     |
-|:------------------|:-------------------------------------------|
-| `Shift+Right`     | next item of menu                          |
-| `Shift+Left`      | prev item of menu                          |
-| `Enter`           | set value of text intput                   |
-| `Ctrl+g`          | run request                                |
-| `Ctrl+d`          | delete item  (param, header or form value) |
-| `Space`           | toggle checkbox                            |
-| `PageDown`        | scroll down body of response               |
-| `PageUp`          | scroll up body of response                 |
-| `Tab`             | autocomplete                               |
-| `Ctrl+f`          | toggle fullscreen mode                     |
-| `Ctl+h`           | toggle full help                           |
-| `Ctrl+l`          | load session                               |
-| `Ctrl+s`          | save session                               |
-| `Ctrl+q / Ctrl+c` | quit                                       |
-| `Ctrl+j`          | toggle editor (edit JSON request payload)  |
-| `Alt+Enter`       | save JSON request payload                  |
+| Keys              | Action                                                  |
+|:------------------|:--------------------------------------------------------|
+| `Shift+Right`     | next item of menu                                       |
+| `Shift+Left`      | prev item of menu                                       |
+| `Enter`           | set value of text intput                                |
+| `Ctrl+g`          | run request                                             |
+| `Ctrl+d`          | delete item  (param, header, form value, attached file) |
+| `Space`           | toggle checkbox                                         |
+| `PageDown`        | scroll down body of response                            |
+| `PageUp`          | scroll up body of response                              |
+| `Tab`             | autocomplete                                            |
+| `Ctrl+f`          | toggle fullscreen mode                                  |
+| `Ctl+h`           | toggle full help                                        |
+| `Ctrl+l`          | load session                                            |
+| `Ctrl+s`          | save session                                            |
+| `Ctrl+q / Ctrl+c` | quit                                                    |
+| `Ctrl+j`          | toggle editor (edit JSON request payload)               |
+| `Alt+Enter`       | save JSON request payload                               |
+| `Ctrl+p`          | add jSON payload                                        |
 
 > [!WARNING]
 > Some of rHttp key bindigs may overriden by system settings or terminal emulator
