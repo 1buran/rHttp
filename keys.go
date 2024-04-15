@@ -25,23 +25,23 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 var keys = KeyMap{
 	LoadSession: key.NewBinding(
 		key.WithKeys("ctrl+l"),
-		key.WithHelp("ctrl+l", "load session"),
+		key.WithHelp("Ctrl+l", "load session"),
 	),
 	SaveSession: key.NewBinding(
 		key.WithKeys("ctrl+s"),
-		key.WithHelp("ctrl+s", "save session"),
+		key.WithHelp("Ctrl+s", "save session"),
 	),
 	Autocomplete: key.NewBinding(
 		key.WithKeys("tab"),
-		key.WithHelp("tab", "autocomplete"),
+		key.WithHelp("Tab", "autocomplete"),
 	),
 	Next: key.NewBinding(
 		key.WithKeys("shift+right"),
-		key.WithHelp("shift+right", "next item"),
+		key.WithHelp("Shift+right", "next item"),
 	),
 	Prev: key.NewBinding(
 		key.WithKeys("shift+left"),
-		key.WithHelp("shift+left", "prev item"),
+		key.WithHelp("Shift+left", "prev item"),
 	),
 	Quit: key.NewBinding(
 		key.WithKeys("ctrl+q", "ctrl+c"),
@@ -81,11 +81,11 @@ var keys = KeyMap{
 	),
 	ToggleJSON: key.NewBinding(
 		key.WithKeys("ctrl+j"),
-		key.WithHelp("ctrl+j", "toggle JSON payload"),
+		key.WithHelp("Ctrl+j", "toggle JSON payload"),
 	),
 	SaveJSON: key.NewBinding(
 		key.WithKeys("alt+enter"),
-		key.WithHelp("alt+enter", "save JSON payload"),
+		key.WithHelp("Alt+enter", "save JSON payload"),
 	),
 }
 
