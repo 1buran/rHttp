@@ -1,12 +1,32 @@
 package main
 
 import (
+	"bytes"
+	"io"
 	"net/http"
 	"net/url"
 	"slices"
 	"strings"
 	"testing"
 )
+
+// Test WriteCloser which is mimic the io.WriteCloser, it saves all written data to local var.
+type testWriteCloser struct {
+	data     []byte
+	isClosed bool
+}
+
+func (wc *testWriteCloser) Write(p []byte) (n int, err error) {
+	wc.data = p
+	return len(p), nil
+}
+func (wc *testWriteCloser) Close() error {
+	wc.isClosed = true
+	return nil
+}
+func (wc *testWriteCloser) Contains(b []byte) bool {
+	return bytes.Contains(wc.data, b)
+}
 
 func TestSession(t *testing.T) {
 	var rq *http.Request
@@ -69,7 +89,8 @@ func TestSession(t *testing.T) {
 
 	})
 
-	var buf strings.Builder
+	buf := testWriteCloser{}
+
 	t.Run("save", func(t *testing.T) {
 		s, _ := NewSession(rq, rs, 10, "10.57µs", rqf, rsb)
 
@@ -78,9 +99,12 @@ func TestSession(t *testing.T) {
 			t.Errorf("there is an error during the Session.Save(): %s", err)
 		}
 
-		if !strings.Contains(
-			buf.String(), `"url":"/api/endpoint","headers":{"Auth-Token":["token"]`) {
-			t.Errorf("not found expected data, saved: %s", buf.String())
+		if !buf.isClosed {
+			t.Errorf("the Close() was not invoked")
+		}
+
+		if !buf.Contains([]byte(`"url":"/api/endpoint","headers":{"Auth-Token":["token"]`)) {
+			t.Errorf("not found expected data, saved: %s", buf.data)
 		}
 	})
 
@@ -92,8 +116,7 @@ func TestSession(t *testing.T) {
 		rsb := []string{"{", `"msg": "hello!",`, `"id": 455`, "}"}
 
 		s, _ := NewSession(rq, rs, 10, "10.57µs", rqf, []string{})
-		r := strings.NewReader(buf.String())
-
+		r := io.NopCloser(strings.NewReader(string(buf.data)))
 		err := s.Load(r)
 		if err != nil {
 			t.Errorf("there is an error during the Session.Load(): %s", err)
