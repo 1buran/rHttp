@@ -27,7 +27,7 @@ something like REPL when I can quickly modify request, send it and see the respo
 with all the details. I wanted such utility with minimal magic,
 ideally without any black magic under the hood.
 
-The project has no ambitious goals. It is not killer of Postamn or httpie or curl.
+The project has no ambitious goals. It is not killer of Postman or httpie or curl.
 I hope you may find it useful.
 
 ## Features
