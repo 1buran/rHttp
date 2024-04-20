@@ -1,0 +1,54 @@
+{
+  "Settings": {
+    "Checkboxes": {
+      "https": false,
+      "autoformat": false
+    }
+  },
+  "Theme": {
+    "Chroma": "modus-operandi",
+    "Emojis": {
+      "statusbarResOk": "🍀",
+      "statusbarResWarning": "🍂",
+      "statusbarResError": "🍁",
+      "statusbarResWeird": "🤔",
+      "statusbarDefaultIndicator": "🌲"
+    },
+    "Colors": {
+      "checkboxOn": "22",
+      "checkboxOff": "16",
+      "fileinputPrompt": "54",
+      "fileinputPlaceholder": "235",
+      "fileinputText": "17",
+      "headerName": "89",
+      "headerValue": "54",
+      "helpKey": "17",
+      "helpDesc": "20",
+      "pressedKeyPrompt": "17",
+      "pressedKeyText": "234",
+      "requestBody": "234",
+      "statusbarFg": "#C1C6B2",
+      "statusbarBg": "#353533",
+      "statusbarTextWarning": "202",
+      "statusbarTextError": "234",
+      "statusbarIndicator": "#6124DF",
+      "statusbarNugget": "#FFFDF5",
+      "statusbarBadgeBg": "#59A8C9",
+      "statusbarBadgeFg": "#FFFDF5",
+      "statusbarBadgeError": "#FF5F87",
+      "statusbarBadgeOk": "#2e8048",
+      "statusbarBadgeWarning": "130",
+      "statusbarReqCount": "#A550DF",
+      "statusbarResTime": "#C550DF",
+      "textinputPrompt": "57",
+      "textinputPromptActive": "54",
+      "textinputPlaceholder": "243",
+      "textinputPlaceholderActive": "236",
+      "textinputText": "54",
+      "textareaCursorLine": "234",
+      "textareaPlaceholder": "236",
+      "textareaText": "54",
+      "url": "232"
+    }
+  }
+}

@@ -3,6 +3,9 @@
 [![goreportcard](https://goreportcard.com/badge/github.com/1buran/rHttp)](https://goreportcard.com/report/github.com/1buran/redmine)
 ![Main demo](https://i.imgur.com/I0vIcFS.gif)
 
+#### Color themes (all used colors and emojis are configurable)
+![Light theme](https://i.imgur.com/Cy1xQVj.gif)
+
 #### Responses with minified JSON
 ![JSON min](https://i.imgur.com/FFrxom5.gif)
 
@@ -144,6 +147,7 @@ vhs demo/load-session.tape
 vhs demo/redirects.tape
 vhs demo/edit-json-payload.tape
 vhs demo/attach-file.tape
+vhs demo/main-light.tape
 ```
 ### imgur
 
@@ -157,6 +161,7 @@ demo["load-session"]="Load session"
 demo["redirects"]="Redirects"
 demo["edit-json-payload"]="Edit JSON Payload"
 demo["attach-file"]="Attach file"
+demo["main-light"]="Light theme"
 
 for i in ${!demo[@]}; do
     . .env && url=`curl --location https://api.imgur.com/3/image \
