@@ -2,7 +2,6 @@
   "Settings": {
     "Timeout": 2,
     "MaxRedirects": 30,
-    "Fullscreen": true,
     "Checkboxes": {
       "https": true,
       "autoformat": true
