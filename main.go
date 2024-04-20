@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"io"
 	"log"
@@ -90,7 +91,7 @@ const (
 var (
 	showHelp, printDefaultConf bool
 	configPath, chromaStyle    string
-	timeout                    int
+	timeout, maxRedirects      int
 
 	screenWidth  = 100
 	screenHeight = 50
@@ -154,6 +155,9 @@ var redirects []string
 
 func handleRedirect(req *http.Request, via []*http.Request) error {
 	redirects = append(redirects, strconv.Itoa(req.Response.StatusCode)+" "+req.URL.String())
+	if len(redirects) > maxRedirects {
+		return errors.New("max redirects (" + strconv.Itoa(maxRedirects) + ") followed")
+	}
 	return nil
 }
 
@@ -570,6 +574,7 @@ func initialModel(conf *Config) model {
 
 	// update styles according to theme colors
 	timeout = conf.Timeout
+	maxRedirects = conf.MaxRedirects
 	chromaStyle = conf.Chroma
 	baseStyle := lipgloss.NewStyle().Width(screenWidth)
 	promptStyle = lipgloss.NewStyle().Foreground(conf.Color("textinputPrompt")).Bold(true)
