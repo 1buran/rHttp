@@ -90,6 +90,7 @@ const (
 var (
 	showHelp, printDefaultConf bool
 	configPath, chromaStyle    string
+	timeout                    int
 
 	screenWidth  = 100
 	screenHeight = 50
@@ -158,7 +159,7 @@ func handleRedirect(req *http.Request, via []*http.Request) error {
 
 func sendRequest(r *http.Request, p int) (*http.Response, error) {
 	redirects = nil
-	http_cli := http.Client{Timeout: 2 * time.Second, CheckRedirect: handleRedirect}
+	http_cli := http.Client{Timeout: time.Duration(timeout) * time.Second, CheckRedirect: handleRedirect}
 	prepareRequest(r, p)
 	return http_cli.Do(r)
 }
@@ -568,6 +569,7 @@ func initialModel(conf *Config) model {
 	req := newReqest()
 
 	// update styles according to theme colors
+	timeout = conf.Timeout
 	chromaStyle = conf.Chroma
 	baseStyle := lipgloss.NewStyle().Width(screenWidth)
 	promptStyle = lipgloss.NewStyle().Foreground(conf.Color("textinputPrompt")).Bold(true)
