@@ -26,7 +26,6 @@ type Config struct {
 type Settings struct {
 	Timeout      int             `json:"Timeout"`
 	MaxRedirects int             `json:"MaxRedirects"`
-	Fullscreen   bool            `json:"Fullscreen"`
 	Checkboxes   map[string]bool `json:"Checkboxes"`
 }
 
