@@ -74,14 +74,14 @@ func (f FileInput) View() string {
 	return f.widget.View()
 }
 
-func NewFileInput(id, mode int, title, placeholder string) FileInput {
+func NewFileInput(id, mode int, title, placeholder string, colors ...lipgloss.Color) FileInput {
 	w := textinput.New()
 	w.Prompt = title
 	w.Placeholder = placeholder
 	w.Width = 25
-	w.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("177")).Bold(true)
-	w.PlaceholderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("243"))
-	w.TextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("219"))
+	w.PromptStyle = lipgloss.NewStyle().Foreground(colors[0]).Bold(true)
+	w.PlaceholderStyle = lipgloss.NewStyle().Foreground(colors[1])
+	w.TextStyle = lipgloss.NewStyle().Foreground(colors[2])
 	return FileInput{id: id, mode: mode, widget: w}
 }
 

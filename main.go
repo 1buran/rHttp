@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"io"
 	"log"
 	"net/http"
@@ -86,58 +87,29 @@ const (
 	file
 )
 
-const (
-	hotPink   = lipgloss.Color("69")
-	lightPink = lipgloss.Color("225")
-	darkGray  = lipgloss.Color("243")
-	lightGray = lipgloss.Color("249")
-
-	purple        = lipgloss.Color("141")
-	brightPurple  = lipgloss.Color("183")
-	brightPurple2 = lipgloss.Color("189")
-	lightBlue     = lipgloss.Color("12")
-	rose          = lipgloss.Color("177")
-	rose2         = lipgloss.Color("219")
-)
-
 var (
+	showHelp   bool
+	configPath string
+
 	screenWidth  = 100
 	screenHeight = 50
 	offsetShift  = 5
-	baseStyle    = lipgloss.NewStyle().Width(screenWidth)
 
-	checkboxOnStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true).PaddingRight(21)
-	checkboxOffStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8")).PaddingRight(21)
+	promptStyle, promptActiveStyle, placeholderStyle, placeholderActiveStyle, textValueStyle,
+	headerNameStyle, headerValueStyle,
+	bodyStyle, urlStyle,
+	pressedKeyPromptStyle, pressedKeyTextStyle,
+	checkboxOnStyle, checkboxOffStyle,
+	textAreaTextStyle, textAreaCursorLineStyle, textAreaPlaceholder lipgloss.Style
 
-	promptStyle       = lipgloss.NewStyle().Foreground(hotPink).Bold(true)
-	promptActiveStyle = lipgloss.NewStyle().Foreground(rose).Bold(true)
-	textStyle         = lipgloss.NewStyle().Foreground(purple)
-	textValueStyle    = lipgloss.NewStyle().Foreground(brightPurple)
-
-	placeholderStyle       = lipgloss.NewStyle().Foreground(darkGray)
-	placeholderActiveStyle = lipgloss.NewStyle().Foreground(lightGray)
-
-	uriStyle         = lipgloss.NewStyle().Foreground(hotPink)
-	headerStyle      = textStyle
-	headerValueStyle = lipgloss.NewStyle().Foreground(brightPurple)
-	urlStyle         = lipgloss.NewStyle().Inherit(baseStyle).
-				Foreground(brightPurple2).
-				Bold(true).Padding(0, 1)
-
-	bodyStyle = lipgloss.NewStyle().Inherit(baseStyle).Foreground(lightPink)
-
-	pressedKeyStyle = []lipgloss.Style{
-		lipgloss.NewStyle().Foreground(rose2),
-		lipgloss.NewStyle().Foreground(lightPink).Bold(true),
-	}
-
-	titleStyle = lipgloss.NewStyle().Foreground(lightBlue).
-			Bold(true).BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(lipgloss.Color("63")).
-			Padding(1).Width(60).AlignHorizontal(lipgloss.Center)
-
-	sbar = NewStatusBar()
+	sbar StatusBar
 )
+
+func init() {
+	flag.StringVar(&configPath, "c", "", "config file")
+	flag.BoolVar(&showHelp, "h", false, "show help")
+	flag.BoolVar(&showHelp, "help", false, "show help")
+}
 
 func fileinputIndex(i int) (idx int) {
 	idx = i - end - 1
@@ -212,7 +184,7 @@ func headersPrintf(h http.Header) []string {
 	// print headers
 	for _, name := range order {
 		val := strings.Join(h[name], ", ")
-		nameRendered := headerStyle.Padding(0, 1).Render(name + ":")
+		nameRendered := headerNameStyle.Padding(0, 1).Render(name + ":")
 		lines = append(
 			lines, lipgloss.JoinHorizontal(
 				lipgloss.Top,
@@ -587,10 +559,39 @@ func NewKeyValInputs(n int) textinput.Model {
 	return t
 }
 
-func initialModel() model {
+func initialModel(conf *Config) model {
 	var inputs []textinput.Model
 	var checkboxes []Checkbox
 	var fileInputs []FileInput
+
+	// update styles according to theme colors
+	baseStyle := lipgloss.NewStyle().Width(screenWidth)
+	promptStyle = lipgloss.NewStyle().Foreground(conf.Color("textinputPrompt")).Bold(true)
+	promptActiveStyle = lipgloss.NewStyle().Foreground(conf.Color("textinputPromptActive")).Bold(true)
+	placeholderStyle = lipgloss.NewStyle().Foreground(conf.Color("textinputPlaceholder"))
+	placeholderActiveStyle = lipgloss.NewStyle().Foreground(conf.Color("textinputPlaceholderActive"))
+	textValueStyle = lipgloss.NewStyle().Foreground(conf.Color("textinputText"))
+
+	bodyStyle = lipgloss.NewStyle().Inherit(baseStyle).Foreground(conf.Color("requestBody"))
+
+	pressedKeyPromptStyle = lipgloss.NewStyle().Foreground(conf.Color("pressedKeyPrompt"))
+	pressedKeyTextStyle = lipgloss.NewStyle().Foreground(conf.Color("pressedKeyText")).Bold(true)
+
+	textAreaTextStyle = lipgloss.NewStyle().Foreground(conf.Color("textareaText"))
+	textAreaPlaceholder = lipgloss.NewStyle().Foreground(conf.Color("textareaPlaceholder"))
+	textAreaCursorLineStyle = lipgloss.NewStyle().Foreground(conf.Color("textareaCursorLine"))
+
+	checkboxOnStyle = lipgloss.NewStyle().Foreground(conf.Color("checkboxOn")).Bold(true).PaddingRight(21)
+	checkboxOffStyle = lipgloss.NewStyle().Foreground(conf.Color("checkboxOff")).PaddingRight(21)
+
+	headerNameStyle = lipgloss.NewStyle().Foreground(conf.Color("headerName"))
+	headerValueStyle = lipgloss.NewStyle().Foreground(conf.Color("headerValue"))
+
+	urlStyle = lipgloss.NewStyle().Inherit(baseStyle).
+		Foreground(conf.Color("url")).
+		Bold(true).Padding(0, 1)
+
+	sbar = NewStatusBar(conf)
 
 	w, h, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
@@ -607,9 +608,14 @@ func initialModel() model {
 	c2 := NewCheckbox(autoformat, "Auto format JSON ", "⟨on⟩ ", "⟨off⟩", promptStyle, checkboxOnStyle, checkboxOffStyle)
 	checkboxes = append(checkboxes, c1, c2)
 
-	f1 := NewFileInput(sessionSave, WriteMode, "Session save: ", "/home/user/ses.json")
-	f2 := NewFileInput(sessionLoad, ReadMode, "Session load: ", "/home/user/ses.json")
-	f3 := NewFileInput(payload, ReadMode, "Payload: ", "/home/user/data.json")
+	fiColors := []lipgloss.Color{
+		conf.Color("fileinputPrompt"),
+		conf.Color("fileinputPlaceholder"),
+		conf.Color("fileinputText"),
+	}
+	f1 := NewFileInput(sessionSave, WriteMode, "Session save: ", "/home/user/ses.json", fiColors...)
+	f2 := NewFileInput(sessionLoad, ReadMode, "Session load: ", "/home/user/ses.json", fiColors...)
+	f3 := NewFileInput(payload, ReadMode, "Payload: ", "/home/user/data.json", fiColors...)
 
 	fileInputs = append(fileInputs, f1, f2, f3)
 
@@ -618,9 +624,9 @@ func initialModel() model {
 	txt.Placeholder = `{ "key": "value", ...}`
 	txt.Prompt = ""
 	txt.FocusedStyle = textarea.Style{
-		Text:        textValueStyle,
-		CursorLine:  lipgloss.NewStyle().Foreground(lightPink),
-		Placeholder: placeholderActiveStyle,
+		Text:        textAreaTextStyle,
+		CursorLine:  textAreaCursorLineStyle,
+		Placeholder: textAreaPlaceholder,
 	}
 
 	m := model{
@@ -1174,8 +1180,8 @@ func (m model) View() string {
 	rpContent := []string{
 		rv,
 		lipgloss.NewStyle().Width(rW).Render(
-			pressedKeyStyle[0].Render("Pressed key: ") +
-				pressedKeyStyle[1].Render(m.pressedKey)),
+			pressedKeyPromptStyle.Render("Pressed key: ") +
+				pressedKeyTextStyle.Render(m.pressedKey)),
 	}
 	for i := 0; i < len(m.fileInputs); i++ {
 		if m.fileInputs[i].IsVisible() {
@@ -1220,7 +1226,19 @@ func (m model) View() string {
 }
 
 func main() {
-	p := tea.NewProgram(initialModel())
+	// parse args and show help (if needed)
+	flag.Parse()
+	if showHelp {
+		flag.PrintDefaults()
+		os.Exit(0)
+	}
+
+	conf, err := ReadConfig(configPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	p := tea.NewProgram(initialModel(conf))
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}

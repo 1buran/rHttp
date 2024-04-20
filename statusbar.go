@@ -12,52 +12,18 @@ import (
 const (
 	textShiftLimit = 5
 
-	statusInfoEmoji    = "🟢"
-	statusWarningEmoji = "🟡"
-	statusErrorEmoji   = "🔴"
-
-	yellow = lipgloss.Color("220")
-
 	statusInfo int = iota
 	statusWarning
 	statusError
 )
 
 var (
-	statusNugget = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFDF5")).
-			Padding(0, 1)
+	statusResOkEmoji, statusResWarningEmoji, statusResErrorEmoji, statusResWeirdEmoji,
+	statusDefaultIndEmoji string
 
-	statusBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#343433", Dark: "#C1C6B2"}).
-			Background(lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#353533"})
-
-	statusBadge = lipgloss.NewStyle().Inherit(statusBarStyle).
-			Background(lipgloss.Color("#59A8C9")).
-			Foreground(lipgloss.Color("#FFFDF5")).
-			Padding(0, 1).
-			MarginRight(1)
-	statusBadgeError = lipgloss.NewStyle().Inherit(statusBadge).
-				Background(lipgloss.Color("#FF5F87")).Padding(0, 1)
-
-	statusBadgeOk = lipgloss.NewStyle().Inherit(statusBadge).
-			Background(lipgloss.Color("#2e8048")).Padding(0, 1)
-	statusBadgeWarning = lipgloss.NewStyle().Inherit(statusBadge).
-				Background(lipgloss.Color("130")).Padding(0, 1)
-
-	reqCountStyle = statusNugget.Copy().
-			Background(lipgloss.Color("#A550DF")).
-			Align(lipgloss.Right)
-
-	resTimeStyle = statusNugget.Copy().
-			Background(lipgloss.Color("#C550DF")).
-			Align(lipgloss.Right)
-
-	statusText        = lipgloss.NewStyle().Inherit(statusBarStyle)
-	statusTextInfo    = lipgloss.NewStyle().Inherit(statusText)
-	statusTextError   = lipgloss.NewStyle().Inherit(statusText).Foreground(lipgloss.Color("225"))
-	statusTextWarning = lipgloss.NewStyle().Inherit(statusText).Foreground(yellow)
-	indicatorStyle    = statusNugget.Copy().Background(lipgloss.Color("#6124DF"))
+	statusBarStyle, statusNugget, statusBadge, statusBadgeError, statusBadgeOk, statusBadgeWarning,
+	reqCountStyle, resTimeStyle, statusText, statusTextInfo, statusTextError,
+	statusTextWarning, indicatorStyle lipgloss.Style
 )
 
 // A status bar state.
@@ -226,15 +192,15 @@ func (s *StatusBar) getStatusBadge(text string) (badge string) {
 func (s *StatusBar) getStatusIndicator() (ind string) {
 	switch {
 	case s.resStatusCode >= 400:
-		ind = statusErrorEmoji + " " + s.resProto
+		ind = statusResErrorEmoji + " " + s.resProto
 	case s.resStatusCode >= 300:
-		ind = statusWarningEmoji + " " + s.resProto
+		ind = statusResWarningEmoji + " " + s.resProto
 	case s.resStatusCode >= 100:
-		ind = statusInfoEmoji + " " + s.resProto
+		ind = statusResOkEmoji + " " + s.resProto
 	case s.resStatusCode > 0, s.resStatusCode < 0:
-		ind = `🤔` + " " + s.resProto
+		ind = statusResWeirdEmoji + " " + s.resProto
 	default:
-		ind = `💜 rHttp`
+		ind = statusDefaultIndEmoji + " rHttp"
 	}
 	return
 }
@@ -263,6 +229,42 @@ func (s *StatusBar) FormatStatusBar() string {
 	return statusBarStyle.Width(screenWidth).Render(bar)
 }
 
-func NewStatusBar() StatusBar {
+func NewStatusBar(conf *Config) StatusBar {
+	statusResOkEmoji = conf.Emoji("statusbarResOk")
+	statusResWarningEmoji = conf.Emoji("statusbarResWarning")
+	statusResErrorEmoji = conf.Emoji("statusbarResError")
+	statusDefaultIndEmoji = conf.Emoji("statusbarDefaultIndicator")
+	statusResWeirdEmoji = conf.Emoji("statusbarResWeird")
+
+	statusBarStyle = lipgloss.NewStyle().
+		Foreground(conf.Color("statusbarFg")).
+		Background(conf.Color("statusbarBg"))
+	statusNugget = lipgloss.NewStyle().Foreground(conf.Color("statusbarNugget")).Padding(0, 1)
+	statusBadge = lipgloss.NewStyle().Inherit(statusBarStyle).
+		Background(conf.Color("statusbarBadgeBg")).
+		Foreground(conf.Color("statusbarBadgeFg")).
+		Padding(0, 1).MarginRight(1)
+
+	statusBadgeError = lipgloss.NewStyle().Inherit(statusBadge).
+		Background(conf.Color("statusbarBadgeError")).Padding(0, 1)
+	statusBadgeOk = lipgloss.NewStyle().Inherit(statusBadge).
+		Background(conf.Color("statusbarBadgeOk")).Padding(0, 1)
+	statusBadgeWarning = lipgloss.NewStyle().Inherit(statusBadge).
+		Background(conf.Color("statusbarBadgeWarning")).Padding(0, 1)
+
+	reqCountStyle = statusNugget.Copy().
+		Background(conf.Color("statusbarReqCount")).Align(lipgloss.Right)
+	resTimeStyle = statusNugget.Copy().
+		Background(conf.Color("statusbarResTime")).Align(lipgloss.Right)
+
+	statusText = lipgloss.NewStyle().Inherit(statusBarStyle)
+	statusTextInfo = lipgloss.NewStyle().Inherit(statusText)
+	statusTextError = lipgloss.NewStyle().Inherit(statusText).
+		Foreground(conf.Color("statusbarTextError"))
+
+	statusTextWarning = lipgloss.NewStyle().Inherit(statusText).
+		Foreground(conf.Color("statusbarTextWarning"))
+	indicatorStyle = statusNugget.Copy().Background(conf.Color("statusbarIndicator"))
+
 	return StatusBar{}
 }
