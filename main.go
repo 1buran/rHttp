@@ -654,7 +654,7 @@ func initialModel(conf *Config) model {
 		fileInputs: fileInputs,
 		textArea:   txt,
 		rpView:     helpView,
-		KeyStroke:  NewKeyStroke(),
+		KeyStroke:  NewKeyStroke(conf.Color("helpKey"), conf.Color("helpDesc")),
 	}
 	return m
 }

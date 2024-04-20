@@ -101,10 +101,10 @@ type KeyStroke struct {
 }
 
 // Create new instance of [KeyStroke].
-func NewKeyStroke() KeyStroke {
+func NewKeyStroke(keyStyle, descStyle lipgloss.Color) KeyStroke {
 	h := help.New()
-	h.Styles.FullKey = h.Styles.FullKey.Foreground(lipgloss.Color("219"))
-	h.Styles.FullDesc = h.Styles.FullDesc.Foreground(lipgloss.Color("213"))
+	h.Styles.FullKey = h.Styles.FullKey.Foreground(keyStyle)
+	h.Styles.FullDesc = h.Styles.FullDesc.Foreground(descStyle)
 	h.Styles.ShortKey = h.Styles.FullKey
 	h.Styles.ShortDesc = h.Styles.FullDesc
 	return KeyStroke{keys: keys, help: h}
