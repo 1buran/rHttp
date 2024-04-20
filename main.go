@@ -565,6 +565,8 @@ func initialModel(conf *Config) model {
 	var checkboxes []Checkbox
 	var fileInputs []FileInput
 
+	req := newReqest()
+
 	// update styles according to theme colors
 	chromaStyle = conf.Chroma
 	baseStyle := lipgloss.NewStyle().Width(screenWidth)
@@ -607,7 +609,14 @@ func initialModel(conf *Config) model {
 	}
 
 	c1 := NewCheckbox(https, "https  ", "⟨on⟩ ", "⟨off⟩", promptStyle, checkboxOnStyle, checkboxOffStyle)
+	if conf.Checkboxes["https"] {
+		req.URL.Scheme = "https"
+		c1.SetOn()
+	}
 	c2 := NewCheckbox(autoformat, "Auto format JSON ", "⟨on⟩ ", "⟨off⟩", promptStyle, checkboxOnStyle, checkboxOffStyle)
+	if conf.Checkboxes["autoformat"] {
+		c2.SetOn()
+	}
 	checkboxes = append(checkboxes, c1, c2)
 
 	fiColors := []lipgloss.Color{
@@ -632,7 +641,7 @@ func initialModel(conf *Config) model {
 	}
 
 	m := model{
-		req:        newReqest(),
+		req:        req,
 		inputs:     inputs,
 		checkboxes: checkboxes,
 		fileInputs: fileInputs,
