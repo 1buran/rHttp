@@ -32,6 +32,7 @@ type Settings struct {
 
 // UI color settings.
 type Theme struct {
+	Chroma string                    `json:"Chroma"`
 	Colors map[string]lipgloss.Color `json:"Colors"`
 	Emojis map[string]string         `json:"Emojis"`
 }

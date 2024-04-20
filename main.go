@@ -89,7 +89,7 @@ const (
 
 var (
 	showHelp, printDefaultConf bool
-	configPath                 string
+	configPath, chromaStyle    string
 
 	screenWidth  = 100
 	screenHeight = 50
@@ -566,6 +566,7 @@ func initialModel(conf *Config) model {
 	var fileInputs []FileInput
 
 	// update styles according to theme colors
+	chromaStyle = conf.Chroma
 	baseStyle := lipgloss.NewStyle().Width(screenWidth)
 	promptStyle = lipgloss.NewStyle().Foreground(conf.Color("textinputPrompt")).Bold(true)
 	promptActiveStyle = lipgloss.NewStyle().Foreground(conf.Color("textinputPromptActive")).Bold(true)
@@ -696,7 +697,7 @@ func formatRespBody(ct, s string, autoformat bool) []string {
 	s = lp.Render(s)
 
 	// pick a style
-	style := styles.Get("catppuccin-mocha")
+	style := styles.Get(chromaStyle)
 	if style == nil {
 		style = styles.Fallback
 	}
