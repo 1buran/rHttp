@@ -41,6 +41,7 @@ Currently implemented:
 - Automatic syntax highlighting of the body of http responses
 - Auto format JSON responses (useful for inspection of minified responses)
 - Save & load sessions (useful for complex request setup)
+- Color themes (all used colors and emojis are configurable, see [config section](#config))
 
 In progress:
 - Load binary data of upload form from file
@@ -112,6 +113,21 @@ here they are:
 > settings, please check them if you face with not working key binding.
 
 [texarea key bindings](https://pkg.go.dev/github.com/charmbracelet/bubbles/textarea#pkg-variables)
+
+## Config
+
+You can use your own color theme and change other default settings via config.
+
+To use a custom config you should run `rHttp` with param `-c /path/to/config.json` or
+place it by the path: `~/.config/rhttp/config.json`
+
+Firstly print default config to file: `rhttp -print-default-config > /path/to/config.json`,
+then modify what you wanted and run `rhttp` with new config: `rhttp -c /path/to/config.json`.
+
+Order of overriding settings:
+- default settings
+- `~/.config/rhttp/config.json` settings
+- command line arg: `rHttp -c /path/to/config.json` (highest priority)
 
 ## Tasks
 

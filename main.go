@@ -88,8 +88,8 @@ const (
 )
 
 var (
-	showHelp   bool
-	configPath string
+	showHelp, printDefaultConf bool
+	configPath                 string
 
 	screenWidth  = 100
 	screenHeight = 50
@@ -107,6 +107,7 @@ var (
 
 func init() {
 	flag.StringVar(&configPath, "c", "", "config file")
+	flag.BoolVar(&printDefaultConf, "print-default-config", false, "print default config and exit")
 	flag.BoolVar(&showHelp, "h", false, "show help")
 	flag.BoolVar(&showHelp, "help", false, "show help")
 }
@@ -1230,6 +1231,11 @@ func main() {
 	flag.Parse()
 	if showHelp {
 		flag.PrintDefaults()
+		os.Exit(0)
+	}
+
+	if printDefaultConf {
+		PrintDefaultConfig()
 		os.Exit(0)
 	}
 

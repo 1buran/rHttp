@@ -3,8 +3,10 @@ package main
 import (
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -69,32 +71,77 @@ func (c *Config) Emoji(s string) string {
 	return emoji
 }
 
-// Read config.
-func ReadConfig(filepath string) (*Config, error) {
-	c := &Config{}
-	err := json.Unmarshal(defaultConfig, c)
-	if err != nil {
-		return nil, err
+// Load default settings.
+func loadDefaultSettings(c *Config) error {
+	return json.Unmarshal(defaultConfig, c)
+}
+
+// Load user settings.
+// todo make it is more robust, do not silent errors from the one side and
+// todo do not make a lot of noise / spam from the other...
+func loadUserSettings(c *Config) error {
+	userHome, _ := os.UserHomeDir() // ignore rare cases when user home is undefined
+	userConfig := filepath.Join(userHome, ".config/rhttp/config.json")
+	if _, err := os.Stat(userConfig); err != nil {
+		if errors.Is(err, os.ErrNotExist) { // it's ok if config is missed
+			return nil
+		} else {
+			return err
+		}
 	}
 
-	if filepath == "" {
-		return c, nil // no filepath passed, return default config
+	return loadJSON(userConfig, c)
+}
+func loadOverrideSettings(path string, c *Config) error {
+	if path == "" {
+		return nil // no config path passed
 	}
 
-	r, err := os.Open(filepath)
+	if strings.HasPrefix(path, "~/") {
+		userHome, _ := os.UserHomeDir() // ignore rare cases when user home is undefined
+		path = filepath.Join(userHome, path)
+	}
+	return loadJSON(path, c)
+}
+
+func loadJSON(path string, c *Config) error {
+	r, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	b, err := io.ReadAll(r)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	err = json.Unmarshal(b, c)
 	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Read config.
+func ReadConfig(configPath string) (*Config, error) {
+	c := &Config{}
+
+	if err := loadDefaultSettings(c); err != nil {
+		return nil, err
+	}
+
+	if err := loadUserSettings(c); err != nil {
+		return nil, err
+	}
+
+	if err := loadOverrideSettings(configPath, c); err != nil {
 		return nil, err
 	}
 
 	return c, nil
+}
+
+// Print default config.
+func PrintDefaultConfig() {
+	os.Stdout.Write(defaultConfig)
 }
