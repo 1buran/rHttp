@@ -10,11 +10,10 @@
   "Theme": {
     "Chroma": "catppuccin-mocha",
     "Emojis": {
-      "statusbarResOk": "🟢",
-      "statusbarResWarning": "🟡",
-      "statusbarResError": "🔴",
-      "statusbarResWeird": "🤔",
-      "statusbarDefaultIndicator": "💜"
+      "statusbarProtoInsecure": "🌿",
+      "statusbarProtoHttps": "🔒",
+      "statusbarProtoHttp2": "🗲 ",
+      "statusbarDefaultIndicator": "⿻"
     },
     "Colors": {
       "checkboxOn": "42",

@@ -18,8 +18,7 @@ const (
 )
 
 var (
-	statusResOkEmoji, statusResWarningEmoji, statusResErrorEmoji, statusResWeirdEmoji,
-	statusDefaultIndEmoji string
+	statusProtoHttp2, statusProtoHttps, statusProtoInsecure, statusDefaultIndEmoji string
 
 	statusBarStyle, statusNugget, statusBadge, statusBadgeError, statusBadgeOk, statusBadgeWarning,
 	reqCountStyle, resTimeStyle, statusText, statusTextInfo, statusTextError,
@@ -32,10 +31,12 @@ type StatusBar struct {
 	text          string
 	textOffset    int
 	screenWidth   int
+	reqScheme     string
 	reqCount      int
 	resTime       time.Duration
 	resStatusCode int
 	resProto      string
+	resProtoMajor int
 }
 
 type StatusBarTickMsg time.Time
@@ -156,8 +157,10 @@ func (s *StatusBar) SetResStatusCode(c int) {
 }
 
 // Set last response proto.
-func (s *StatusBar) SetResProto(p string) {
-	s.resProto = p
+func (s *StatusBar) SetResProto(major int, proto, scheme string) {
+	s.resProtoMajor = major
+	s.resProto = proto
+	s.reqScheme = scheme
 }
 
 // Set count of requests.
@@ -189,18 +192,18 @@ func (s *StatusBar) getStatusBadge(text string) (badge string) {
 }
 
 // Get status logo indicator.
-func (s *StatusBar) getStatusIndicator() (ind string) {
-	switch {
-	case s.resStatusCode >= 400:
-		ind = statusResErrorEmoji + " " + s.resProto
-	case s.resStatusCode >= 300:
-		ind = statusResWarningEmoji + " " + s.resProto
-	case s.resStatusCode >= 100:
-		ind = statusResOkEmoji + " " + s.resProto
-	case s.resStatusCode > 0, s.resStatusCode < 0:
-		ind = statusResWeirdEmoji + " " + s.resProto
+func (s *StatusBar) protoIndicator() (ind string) {
+	switch s.resProtoMajor {
+	case 1:
+		if s.reqScheme == "https" {
+			ind = statusProtoHttps + s.resProto
+		} else {
+			ind = statusProtoInsecure + s.resProto
+		}
+	case 2:
+		ind = statusProtoHttp2 + s.resProto
 	default:
-		ind = statusDefaultIndEmoji + " rHttp"
+		ind = statusDefaultIndEmoji + "rHttp"
 	}
 	return
 }
@@ -212,29 +215,20 @@ func (s *StatusBar) FormatStatusBar() string {
 	status := s.getStatusBadge("STATUS")
 	reqCounter := reqCountStyle.Render(strconv.Itoa(s.reqCount))
 	resTime := resTimeStyle.Render(s.GetResTime())
+	proto := indicatorStyle.Render(s.protoIndicator())
 
-	indicator := indicatorStyle.Render(s.getStatusIndicator())
-
-	maxTextWidth := screenWidth - w(status) - w(reqCounter) - w(resTime) - w(indicator)
+	maxTextWidth := screenWidth - w(status) - w(reqCounter) - w(resTime) - w(proto)
 	statusVal := statusText.Copy().Width(maxTextWidth).Render(s.getStatusText(maxTextWidth))
-
-	bar := lipgloss.JoinHorizontal(lipgloss.Top,
-		status,
-		statusVal,
-		reqCounter,
-		resTime,
-		indicator,
-	)
+	bar := lipgloss.JoinHorizontal(lipgloss.Top, status, statusVal, reqCounter, resTime, proto)
 
 	return statusBarStyle.Width(screenWidth).Render(bar)
 }
 
 func NewStatusBar(conf *Config) StatusBar {
-	statusResOkEmoji = conf.Emoji("statusbarResOk")
-	statusResWarningEmoji = conf.Emoji("statusbarResWarning")
-	statusResErrorEmoji = conf.Emoji("statusbarResError")
+	statusProtoHttp2 = conf.Emoji("statusbarProtoHttp2")
+	statusProtoHttps = conf.Emoji("statusbarProtoHttps")
 	statusDefaultIndEmoji = conf.Emoji("statusbarDefaultIndicator")
-	statusResWeirdEmoji = conf.Emoji("statusbarResWeird")
+	statusProtoInsecure = conf.Emoji("statusbarProtoInsecure")
 
 	statusBarStyle = lipgloss.NewStyle().
 		Foreground(conf.Color("statusbarFg")).
