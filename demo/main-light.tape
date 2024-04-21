@@ -20,6 +20,7 @@ Ctrl + h
 Sleep 3
 
 Ctrl + f
+Sleep 2
 
 Enter
 Backspace 9

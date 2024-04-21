@@ -8,11 +8,10 @@
   "Theme": {
     "Chroma": "modus-operandi",
     "Emojis": {
-      "statusbarResOk": "🍀",
-      "statusbarResWarning": "🍂",
-      "statusbarResError": "🍁",
-      "statusbarResWeird": "🤔",
-      "statusbarDefaultIndicator": "🌲"
+      "statusbarProtoInsecure": "🌿",
+      "statusbarProtoHttps": "🔒",
+      "statusbarProtoHttp2": "🗲 ",
+      "statusbarDefaultIndicator": "🌲 "
     },
     "Colors": {
       "checkboxOn": "22",

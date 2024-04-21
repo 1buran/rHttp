@@ -7,17 +7,19 @@ Set Margin 2
 Set Width 1280
 Set Height 1024
 Set Framerate 60
-Set TypingSpeed 150ms
-Set PlaybackSpeed 0.4
+Set TypingSpeed 200ms
+Set PlaybackSpeed 0.3
 Set CursorBlink false
 
 Require rhttp
-Type "rhttp" Enter
-
-Sleep 3
+Hide
+Type "rhttp -c demo/config.json" Enter
 Ctrl + f
+Show
 Enter
+Sleep 3
 Ctrl + j
+Sleep 3
 Copy "{" Paste Enter
 Copy '  "name": "Gabriel",' Paste Enter
 Copy '  "password": "Swordfish",' Paste Enter

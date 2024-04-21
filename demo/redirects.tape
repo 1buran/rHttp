@@ -12,14 +12,11 @@ Set PlaybackSpeed 0.5
 Set CursorBlink false
 
 Require rhttp
-Type "rhttp" Enter
-
-Sleep 3
-Ctrl + h
-Sleep 3
-
+Hide
+Type "rhttp -c demo/config.json" Enter
 Ctrl + f
-
+Show
+Ctrl + h
 Enter
 Backspace 9
 Copy "api.coinlore.net"

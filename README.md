@@ -1,25 +1,25 @@
 # rHttp - REPL for HTTP
 [![codecov](https://codecov.io/gh/1buran/rHttp/graph/badge.svg?token=20IW0GY8R9)](https://codecov.io/gh/1buran/rHttp)
 [![goreportcard](https://goreportcard.com/badge/github.com/1buran/rHttp)](https://goreportcard.com/report/github.com/1buran/redmine)
-![Main demo](https://i.imgur.com/I0vIcFS.gif)
+![Main demo](https://i.imgur.com/av5UlI0.gif)
 
 #### Color themes (all used colors and emojis are configurable)
-![Light theme](https://i.imgur.com/Cy1xQVj.gif)
+![Light theme](https://i.imgur.com/nXHdMiU.gif)
 
 #### Responses with minified JSON
-![JSON min](https://i.imgur.com/FFrxom5.gif)
+![JSON min](https://i.imgur.com/DPeROlW.gif)
 
 #### Edit JSON request payload
-![Edit JSON Payload](https://i.imgur.com/08bJisW.gif)
+![Edit JSON Payload](https://i.imgur.com/z5cLXBk.gif)
 
 #### Load JSON request payload from file
-![Attach file](https://i.imgur.com/CtpGGvZ.gif)
+![Attach file](https://i.imgur.com/Rxbew8A.gif)
 
 #### Load session
-![Load session](https://i.imgur.com/iPGhPGI.gif)
+![Load session](https://i.imgur.com/l7RVytc.gif)
 
 #### Redirects
-![Redirects](https://i.imgur.com/rRA4vVy.gif)
+![Redirects](https://i.imgur.com/QVPx3k3.gif)
 
 ## Introduction
 

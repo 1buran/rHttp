@@ -12,11 +12,11 @@ Set PlaybackSpeed 0.4
 Set CursorBlink false
 
 Require rhttp
-Type "rhttp" Enter
-
-Sleep 3
+Hide
+Type "rhttp -c demo/config.json" Enter
+Sleep 2
 Ctrl + f
-Enter
+Show
 Ctrl + l
 Copy "demo/session.json"
 Sleep 3
