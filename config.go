@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -105,12 +104,7 @@ func loadOverrideSettings(path string, c *Config) error {
 }
 
 func loadJSON(path string, c *Config) error {
-	r, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-
-	b, err := io.ReadAll(r)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
