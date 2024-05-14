@@ -59,6 +59,13 @@ In progress:
 go install github.com/1buran/rhttp@latest
 ```
 
+### ❄️ Try it with Nix
+It's possible to try rHttp with nix:
+
+```
+nix run github:nixos/nixpkgs/nixpkgs-unstable#rHttp
+```
+
 ## Key Bindings
 
 | Keys              | Action                                                  |
