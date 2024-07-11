@@ -47,6 +47,8 @@ Currently implemented:
 - Color themes (all used colors and emojis are configurable, see [config section](#config))
 
 In progress:
+- Kill / Cancel outgoing request (do not need to wait timeout for long time requests
+  if you alredy know that the server will not respond or you've realized that outgoing request wasn't properly configured)
 - Load binary data of upload form from file
 - Config file for change key bindings, default settings
 
